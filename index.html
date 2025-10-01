@@ -12,12 +12,19 @@ th, td { border:1px solid #ccc; padding:5px; text-align:center; font-weight:bold
 th { background:#eee; }
 .correct { color: green; }
 .wrong { color: red; }
-#nextPred, #winRate { font-size:18px; font-weight:bold; margin-top:10px; }
+#nextPred, #winRate { 
+    font-size:20px; 
+    font-weight:bold; 
+    margin:10px auto; 
+}
 footer { 
     margin-top:30px; 
-    font-size:42px;  /* 放大底部字体 */
+    font-size:42px;  
     font-weight:bold; 
-    color:#ff4500;   /* 橙红色，更醒目 */
+    color:#fff;
+    background: linear-gradient(to right, #1e3c72, #2a5298); 
+    padding:15px 0;
+    border-radius:12px;
 }
 </style>
 </head>
@@ -25,13 +32,13 @@ footer {
 <h1>SZ28 @SZ28BOT </h1>
 <button onclick="loadData()">刷新数据</button>
 
+<p id="nextPred">加载中...</p>
+<p id="winRate"> </p>
+
 <h2>最近 20 期预测结果</h2>
 <table id="historyTable">
 <tr><th>期号</th><th>预测</th><th>开奖和值</th><th>结果</th></tr>
 </table>
-
-<p id="nextPred">加载中...</p>
-<p id="winRate"> </p>
 
 <footer>BY CKY</footer>
 
@@ -80,7 +87,6 @@ async function loadData(){
     const latestQihao = parseInt(latestData.data[0].qihao);
     const recordDict = {};
 
-    // 获取最近 23 期数据，保证前三期可预测
     for(let q=latestQihao-22;q<=latestQihao;q++){
         const rec = await fetchJSON(`https://pc28.help/qihao/${q}`);
         if(rec && rec.data){
@@ -102,7 +108,7 @@ async function loadData(){
         const last3_nums = prevQihaos.slice(-3).map(q=>recordDict[q]);
         const pred = calcPrediction(last3_nums);
         let total = sum(recordDict[curQihao]);
-        if(total<10) total = '0'+total; // 不足10加0
+        if(total<10) total = '0'+total;
         const res = checkWin(pred,sum(recordDict[curQihao]));
         if(res==='✅') winCount++;
         const tr = document.createElement('tr');
@@ -113,7 +119,6 @@ async function loadData(){
     const winRate = (winCount/testQihaoList.length*100).toFixed(1);
     document.getElementById('winRate').innerText=`历史胜率: ${winRate}%`;
 
-    // 最新预测
     const latestThree = sortedQihao.slice(-3).map(q=>recordDict[q]);
     const nextPred = calcPrediction(latestThree);
     document.getElementById('nextPred').innerText=`最新${latestQihao+1}期预测: ${nextPred}`;
