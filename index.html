@@ -4,15 +4,17 @@
 <meta charset="UTF-8">
 <title>PC28 预测网站</title>
 <style>
-body { font-family: Arial, sans-serif; text-align:center; background:#f8f8f8; }
-h2 { margin-top:20px; }
-button { padding:5px 10px; margin-bottom:20px; cursor:pointer; }
-table { border-collapse: collapse; margin:auto; width:90%; background:#fff; }
-th, td { border:1px solid #ccc; padding:5px; text-align:center; }
+body { font-family: Arial, sans-serif; text-align:center; background:#f8f8f8; margin:20px; }
+h2 { margin-top:20px; font-size:32px; font-weight:bold; }
+button { padding:5px 10px; margin-bottom:20px; cursor:pointer; border-radius:5px; background:#0066cc; color:#fff; border:none; }
+button:hover { background:#004999; }
+table { border-collapse: collapse; margin:auto; width:90%; background:#fff; box-shadow:0 0 10px rgba(0,0,0,0.1); border-radius:5px; overflow:hidden; }
+th, td { border:1px solid #ccc; padding:8px; text-align:center; }
 th { background:#eee; }
-.correct { color: green; font-weight:bold; }
-.wrong { color: red; font-weight:bold; }
-footer { margin-top:20px; font-size:14px; }
+.correct { color: #fff; background-color: green; font-weight:bold; border-radius:4px; padding:2px 6px; display:inline-block; }
+.wrong { color: #fff; background-color: red; font-weight:bold; border-radius:4px; padding:2px 6px; display:inline-block; }
+footer { margin-top:30px; font-size:20px; font-weight:bold; }
+.latest-pred { display:inline-block; padding:10px 20px; margin:15px 0; border:1px solid #0066cc; border-radius:8px; background:#e6f0ff; font-weight:bold; font-size:18px; color:#0066cc; }
 </style>
 </head>
 <body>
@@ -24,8 +26,8 @@ footer { margin-top:20px; font-size:14px; }
 <tr><th>期号</th><th>预测</th><th>开奖和值</th><th>结果</th></tr>
 </table>
 
-<h3>下期预测</h3>
-<p id="nextPred">加载中...</p>
+<h3>最新预测</h3>
+<div class="latest-pred" id="nextPred">加载中...</div>
 
 <h3>历史胜率</h3>
 <p id="winRate">加载中...</p>
@@ -44,9 +46,8 @@ async function fetchJSON(url){
     }
 }
 
-// 预测算法（根据你给的 Python 改写）
+// 预测算法
 function calcPrediction(last3_nums){
-    // last3_nums: array of arrays, [[a,b,c],[...],[...]]
     let a = (sum(last3_nums[2])+last3_nums[2][0])/0.28 +
             (sum(last3_nums[1])+last3_nums[1][0])/0.28 +
             (sum(last3_nums[0])+last3_nums[0][0])/0.28;
@@ -83,7 +84,6 @@ async function loadData(){
     const latestQihao = parseInt(latestData.data[0].qihao);
     const recordDict = {};
 
-    // 获取最近 23 期数据（保证前3期可预测20期）
     for(let q=latestQihao-22;q<=latestQihao;q++){
         const rec = await fetchJSON(`https://pc28.help/qihao/${q}`);
         if(rec && rec.data){
@@ -105,83 +105,27 @@ async function loadData(){
         const last3_nums = prevQihaos.slice(-3).map(q=>recordDict[q]);
         const pred = calcPrediction(last3_nums);
         const total = sum(recordDict[curQihao]);
+        const totalFmt = total<10 ? '0'+total : total; // 补0
         const res = checkWin(pred,total);
         if(res==='✅') winCount++;
         const tr = document.createElement('tr');
-        tr.innerHTML=`<td>${curQihao}</td><td>${pred}</td><td>${total}</td><td class="${res==='✅'?'correct':'wrong'}">${res}</td>`;
+        tr.innerHTML=`<td>${curQihao}</td><td>${pred}</td><td>${totalFmt}</td><td class="${res==='✅'?'correct':'wrong'}">${res}</td>`;
         historyTable.appendChild(tr);
     }
 
-    const winRate = (winCount/20*100).toFixed(1);
+    const winRate = (winCount/testQihaoList.length*100).toFixed(1);
     document.getElementById('winRate').innerText=`历史胜率: ${winRate}%`;
 
-    // 下期预测
+    // 最新预测
     const latestThree = sortedQihao.slice(-3).map(q=>recordDict[q]);
     const nextPred = calcPrediction(latestThree);
-    document.getElementById('nextPred').innerText=`${latestQihao+1}期预测: ${nextPred}`;
+    document.getElementById('nextPred').innerText=`${latestQihao+1}期: ${nextPred}`;
 }
 
 loadData();
 </script>
 </body>
-</html>
-<script>
-// 你的 API URL
-const BASE_URL = "https://pc28.help"; // 替换为你自己的 API
-
-async function fetchJSON(url) {
-  try {
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error("网络错误");
-    return await resp.json();
-  } catch (e) {
-    console.error(e);
-    return null;
-  }
-}
-
-async function loadData() {
-  document.getElementById("nextPrediction").textContent = "加载中...";
-  document.getElementById("winRate").textContent = "加载中...";
-
-  // 假设 API 返回格式为 { data: [...] }
-  let latestResp = await fetchJSON(`${BASE_URL}/kj.json`);
-  if (!latestResp || !latestResp.data) {
-    alert("获取最新开奖失败");
-    return;
-  }
-  let latest = latestResp.data[0];
-  const latestQihao = parseInt(latest.qihao);
-
-  // 模拟预测逻辑（用你自己的算法替换）
-  function predict(qihao) {
-    // 简单示例随机预测
-    const types = ["杀小单","杀小双","杀大单","杀大双"];
-    return types[qihao % 4];
-  }
-
-  // 历史 100 期
-  let history100 = [];
-  for (let i = 0; i < 100; i++) {
-    const q = latestQihao - i;
-    let recordResp = await fetchJSON(`${BASE_URL}/qihao/${q}`);
-    let open = recordResp && recordResp.data && recordResp.data[0] ? recordResp.data[0].opennum : "";
-    let pred = predict(q);
-    let result = open ? (Math.random()>0.2 ? "✅" : "❌") : ""; // 模拟对错
-    history100.push({ qihao: q, open, pred, result });
-  }
-
-  // 最近 20 期
-  let last20 = history100.slice(0,20);
-
-  // 渲染最近 20 期
-  const table20 = document.getElementById("last20");
-  table20.innerHTML = "<tr><th>期号</th><th>开奖</th><th>预测</th><th>结果</th></tr>";
-  last20.forEach(item => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${item.qihao}</td><td>${item.open}</td><td>${item.pred}</td><td class="${item.result==='✅'?'correct':item.result==='❌'?'wrong':''}">${item.result}</td>`;
-    table20.appendChild(tr);
-  });
+</html>  });
 
   // 渲染历史 100 期
   const table100 = document.getElementById("history100");
