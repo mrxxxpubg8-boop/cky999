@@ -2,21 +2,33 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>SZ28 @SZ28BOT </title>
+<title>SZ28 @SZ28BOT</title>
 <style>
 body { font-family: Arial, sans-serif; text-align:center; background:#f8f8f8; }
 h1 { margin-top:20px; font-size:28px; font-weight:bold; }
 button { padding:5px 10px; margin-bottom:20px; cursor:pointer; font-size:16px; }
+
+#infoBoxes {
+    display:flex; 
+    justify-content:center; 
+    gap:20px; 
+    margin-bottom:20px;
+}
+
+.infoBox {
+    background:#e0f0ff; 
+    padding:10px 20px; 
+    border-radius:10px; 
+    font-size:20px; 
+    font-weight:bold;
+}
+
 table { border-collapse: collapse; margin:auto; width:90%; background:#fff; }
 th, td { border:1px solid #ccc; padding:5px; text-align:center; font-weight:bold; }
 th { background:#eee; }
 .correct { color: green; }
 .wrong { color: red; }
-#nextPred, #winRate { 
-    font-size:20px; 
-    font-weight:bold; 
-    margin:10px auto; 
-}
+
 footer { 
     margin-top:30px; 
     font-size:42px;  
@@ -29,11 +41,13 @@ footer {
 </style>
 </head>
 <body>
-<h1>SZ28 @SZ28BOT </h1>
+<h1>SZ28 @SZ28BOT</h1>
 <button onclick="loadData()">刷新数据</button>
 
-<p id="nextPred">加载中...</p>
-<p id="winRate"> </p>
+<div id="infoBoxes">
+    <div class="infoBox"><span id="nextPred">加载中...</span></div>
+    <div class="infoBox"><span id="winRate">加载中...</span></div>
+</div>
 
 <h2>最近 20 期预测结果</h2>
 <table id="historyTable">
@@ -95,17 +109,18 @@ async function loadData(){
         }
     }
 
-    const sortedQihao = Object.keys(recordDict).map(Number).sort((a,b)=>a-b);
+    // 历史按新→旧显示
+    const sortedQihao = Object.keys(recordDict).map(Number).sort((a,b)=>b-a);
     const historyTable = document.getElementById('historyTable');
     historyTable.innerHTML='<tr><th>期号</th><th>预测</th><th>开奖和值</th><th>结果</th></tr>';
 
     let winCount = 0;
-    const testQihaoList = sortedQihao.slice(-20);
+    const testQihaoList = sortedQihao.slice(0,20);
 
     for(let curQihao of testQihaoList){
-        const prevQihaos = sortedQihao.filter(q=>q<curQihao);
+        const prevQihaos = sortedQihao.filter(q=>q<curQihao).sort((a,b)=>b-a);
         if(prevQihaos.length<3) continue;
-        const last3_nums = prevQihaos.slice(-3).map(q=>recordDict[q]);
+        const last3_nums = prevQihaos.slice(0,3).map(q=>recordDict[q]);
         const pred = calcPrediction(last3_nums);
         let total = sum(recordDict[curQihao]);
         if(total<10) total = '0'+total;
@@ -119,7 +134,7 @@ async function loadData(){
     const winRate = (winCount/testQihaoList.length*100).toFixed(1);
     document.getElementById('winRate').innerText=`历史胜率: ${winRate}%`;
 
-    const latestThree = sortedQihao.slice(-3).map(q=>recordDict[q]);
+    const latestThree = sortedQihao.slice(0,3).map(q=>recordDict[q]);
     const nextPred = calcPrediction(latestThree);
     document.getElementById('nextPred').innerText=`最新${latestQihao+1}期预测: ${nextPred}`;
 }
