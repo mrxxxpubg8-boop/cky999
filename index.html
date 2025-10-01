@@ -2,33 +2,33 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>PC28 预测网站</title>
+<title>SZ28 @SZ28BOT 预测</title>
 <style>
-body { font-family: Arial, sans-serif; text-align:center; background:#f0f0f0; }
+body { font-family: Arial, sans-serif; text-align:center; background:#f8f8f8; }
 h1 { margin-top:20px; font-size:28px; font-weight:bold; }
-button { padding:5px 12px; margin-bottom:20px; cursor:pointer; font-size:16px; }
-.grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap:8px; justify-items:center; margin:10px auto; width:90%; }
-.grid-item { background:#fff; border:1px solid #ccc; border-radius:6px; padding:10px; box-shadow:0 2px 4px rgba(0,0,0,0.1); font-weight:bold; }
+button { padding:5px 10px; margin-bottom:20px; cursor:pointer; font-size:16px; }
+table { border-collapse: collapse; margin:auto; width:90%; background:#fff; }
+th, td { border:1px solid #ccc; padding:5px; text-align:center; font-weight:bold; }
+th { background:#eee; }
 .correct { color: green; }
 .wrong { color: red; }
-#nextPred, #winRate { font-size:18px; font-weight:bold; }
-footer { margin-top:20px; font-size:20px; font-weight:bold; }
+#nextPred, #winRate { font-size:18px; font-weight:bold; margin-top:10px; }
+footer { margin-top:30px; font-size:24px; font-weight:bold; }
 </style>
 </head>
 <body>
-<h1>欢迎来到 PC28 预测网站</h1>
+<h1>SZ28 @SZ28BOT 预测</h1>
 <button onclick="loadData()">刷新数据</button>
 
 <h2>最近 20 期预测</h2>
-<div id="historyGrid" class="grid-container"></div>
+<table id="historyTable">
+<tr><th>期号</th><th>预测</th><th>开奖和值</th><th>结果</th></tr>
+</table>
 
-<h2>最新预测</h2>
-<p id="nextPred" class="grid-item">加载中...</p>
+<p id="nextPred">加载中...</p>
+<p id="winRate">加载中...</p>
 
-<h2>历史胜率</h2>
-<p id="winRate" class="grid-item">加载中...</p>
-
-<footer>CKY预测</footer>
+<footer>BY CKY</footer>
 
 <script>
 function sum(arr){ return arr.reduce((a,b)=>a+b,0); }
@@ -59,14 +59,25 @@ function checkWin(pred, total){
     return '❌';
 }
 
+async function fetchJSON(url){
+    try{
+        const resp = await fetch(url);
+        return await resp.json();
+    } catch(e){ console.error(e); return null; }
+}
+
 async function loadData(){
-    const latestData = await fetch('https://pc28.help/kj.json').then(r=>r.json()).catch(()=>null);
-    if(!latestData || !latestData.data){ alert("获取数据失败"); return; }
+    const latestData = await fetchJSON('https://pc28.help/kj.json');
+    if(!latestData || !latestData.data){
+        alert("获取数据失败");
+        return;
+    }
     const latestQihao = parseInt(latestData.data[0].qihao);
     const recordDict = {};
 
+    // 获取最近 23 期数据，保证前三期可预测
     for(let q=latestQihao-22;q<=latestQihao;q++){
-        const rec = await fetch(`https://pc28.help/qihao/${q}`).then(r=>r.json()).catch(()=>null);
+        const rec = await fetchJSON(`https://pc28.help/qihao/${q}`);
         if(rec && rec.data){
             const nums = rec.data[0].opennum.replace(/,/g,'+').split('+').map(Number).slice(0,3);
             if(nums.length>=3) recordDict[q] = nums;
@@ -74,10 +85,10 @@ async function loadData(){
     }
 
     const sortedQihao = Object.keys(recordDict).map(Number).sort((a,b)=>a-b);
-    const historyGrid = document.getElementById('historyGrid');
-    historyGrid.innerHTML='';
+    const historyTable = document.getElementById('historyTable');
+    historyTable.innerHTML='<tr><th>期号</th><th>预测</th><th>开奖和值</th><th>结果</th></tr>';
 
-    let winCount=0;
+    let winCount = 0;
     const testQihaoList = sortedQihao.slice(-20);
 
     for(let curQihao of testQihaoList){
@@ -86,22 +97,21 @@ async function loadData(){
         const last3_nums = prevQihaos.slice(-3).map(q=>recordDict[q]);
         const pred = calcPrediction(last3_nums);
         let total = sum(recordDict[curQihao]);
-        if(total<10) total = '0'+total;
-        const res = checkWin(pred, parseInt(total));
+        if(total<10) total = '0'+total; // 不足10加0
+        const res = checkWin(pred,sum(recordDict[curQihao]));
         if(res==='✅') winCount++;
-
-        const div = document.createElement('div');
-        div.className='grid-item';
-        div.innerHTML=`<div>${curQihao}</div><div>${pred}</div><div>${total}</div><div class="${res==='✅'?'correct':'wrong'}">${res}</div>`;
-        historyGrid.appendChild(div);
+        const tr = document.createElement('tr');
+        tr.innerHTML=`<td>${curQihao}</td><td>${pred}</td><td>${total}</td><td class="${res==='✅'?'correct':'wrong'}">${res}</td>`;
+        historyTable.appendChild(tr);
     }
 
     const winRate = (winCount/testQihaoList.length*100).toFixed(1);
     document.getElementById('winRate').innerText=`历史胜率: ${winRate}%`;
 
+    // 最新预测
     const latestThree = sortedQihao.slice(-3).map(q=>recordDict[q]);
     const nextPred = calcPrediction(latestThree);
-    document.getElementById('nextPred').innerText=`${latestQihao+1}期预测: ${nextPred}`;
+    document.getElementById('nextPred').innerText=`最新预测 ${latestQihao+1}期: ${nextPred}`;
 }
 
 window.onload = loadData;
