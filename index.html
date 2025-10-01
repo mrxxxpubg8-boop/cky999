@@ -20,7 +20,7 @@ footer { margin-top:30px; font-size:24px; font-weight:bold; }
 <h1>SZ28 @SZ28BOT </h1>
 <button onclick="loadData()">刷新数据</button>
 
-<h2>最近 20 期预测</h2>
+<h2>最近 20 期预测结果</h2>
 <table id="historyTable">
 <tr><th>期号</th><th>预测</th><th>开奖和值</th><th>结果</th></tr>
 </table>
@@ -111,7 +111,7 @@ async function loadData(){
     // 最新预测
     const latestThree = sortedQihao.slice(-3).map(q=>recordDict[q]);
     const nextPred = calcPrediction(latestThree);
-    document.getElementById('nextPred').innerText=`最新预测 ${latestQihao+1}期: ${nextPred}`;
+    document.getElementById('nextPred').innerText=`最新${latestQihao+1}期预测: ${nextPred}`;
 }
 
 window.onload = loadData;
