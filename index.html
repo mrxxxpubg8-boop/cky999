@@ -2,34 +2,22 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>SZ28 @SZ28BOT </title>
+<title>SZ28 @SZ28BOT</title>
 <style>
 body { font-family: Arial, sans-serif; text-align:center; background:#f8f8f8; }
 h1 { margin-top:20px; font-size:28px; font-weight:bold; }
 button { padding:5px 10px; margin-bottom:20px; cursor:pointer; font-size:16px; }
 table { border-collapse: collapse; margin:auto; width:90%; background:#fff; }
-th, td { border:1px solid #ccc; padding:5px; text-align:center; font-weight:bold; }
+th, td { border:1px solid #ccc; padding:8px; text-align:center; font-weight:bold; font-size:16px; }
 th { background:#eee; }
 .correct { color: green; }
 .wrong { color: red; }
-#nextPred, #winRate { 
-    font-size:20px; 
-    font-weight:bold; 
-    margin:10px auto; 
-}
-footer { 
-    margin-top:30px; 
-    font-size:42px;  
-    font-weight:bold; 
-    color:#fff;
-    background: linear-gradient(to right, #1e3c72, #2a5298); 
-    padding:15px 0;
-    border-radius:12px;
-}
+#nextPred, #winRate { font-size:20px; font-weight:bold; margin-top:10px; }
+footer { margin-top:30px; font-size:28px; font-weight:bold; background: linear-gradient(to right, #007BFF, #00BFFF); color:white; padding:10px; }
 </style>
 </head>
 <body>
-<h1>SZ28 @SZ28BOT </h1>
+<h1>SZ28 @SZ28BOT</h1>
 <button onclick="loadData()">刷新数据</button>
 
 <p id="nextPred">加载中...</p>
@@ -87,6 +75,7 @@ async function loadData(){
     const latestQihao = parseInt(latestData.data[0].qihao);
     const recordDict = {};
 
+    // 获取最近 23 期数据，保证前三期可预测
     for(let q=latestQihao-22;q<=latestQihao;q++){
         const rec = await fetchJSON(`https://pc28.help/qihao/${q}`);
         if(rec && rec.data){
@@ -95,17 +84,17 @@ async function loadData(){
         }
     }
 
-    const sortedQihao = Object.keys(recordDict).map(Number).sort((a,b)=>a-b);
+    const sortedQihao = Object.keys(recordDict).map(Number).sort((a,b)=>b-a); // 新->旧
     const historyTable = document.getElementById('historyTable');
     historyTable.innerHTML='<tr><th>期号</th><th>预测</th><th>开奖和值</th><th>结果</th></tr>';
 
     let winCount = 0;
-    const testQihaoList = sortedQihao.slice(-20);
+    const testQihaoList = sortedQihao.slice(0,20);
 
     for(let curQihao of testQihaoList){
-        const prevQihaos = sortedQihao.filter(q=>q<curQihao);
+        const prevQihaos = sortedQihao.filter(q=>q>curQihao).slice(0,3);
         if(prevQihaos.length<3) continue;
-        const last3_nums = prevQihaos.slice(-3).map(q=>recordDict[q]);
+        const last3_nums = prevQihaos.map(q=>recordDict[q]);
         const pred = calcPrediction(last3_nums);
         let total = sum(recordDict[curQihao]);
         if(total<10) total = '0'+total;
@@ -119,7 +108,8 @@ async function loadData(){
     const winRate = (winCount/testQihaoList.length*100).toFixed(1);
     document.getElementById('winRate').innerText=`历史胜率: ${winRate}%`;
 
-    const latestThree = sortedQihao.slice(-3).map(q=>recordDict[q]);
+    // 最新预测
+    const latestThree = sortedQihao.slice(0,3).map(q=>recordDict[q]);
     const nextPred = calcPrediction(latestThree);
     document.getElementById('nextPred').innerText=`最新${latestQihao+1}期预测: ${nextPred}`;
 }
