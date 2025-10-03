@@ -23,7 +23,7 @@ button { padding:5px 10px; margin-bottom:20px; cursor:pointer; font-size:16px; }
     font-weight:bold;
 }
 
-table { border-collapse: collapse; margin:auto; width:90%; background:#fff; }
+table { border-collapse: collapse; margin:auto; width:95%; background:#fff; }
 th, td { border:1px solid #ccc; padding:5px; text-align:center; font-weight:bold; }
 th { background:#eee; }
 .correct { color: green; }
@@ -45,53 +45,81 @@ footer {
 <button onclick="loadData()">刷新数据</button>
 
 <div id="infoBoxes">
-    <div class="infoBox"><span id="nextPred">加载中...</span></div>
+    <div class="infoBox"><span id="nextPred1">加载中...</span></div>
+    <div class="infoBox"><span id="nextPred2">加载中...</span></div>
     <div class="infoBox"><span id="winRate">加载中...</span></div>
 </div>
 
 <h2>最近 20 期预测结果</h2>
 <table id="historyTable">
-<tr><th>期号</th><th>预测</th><th>开奖和值</th><th>结果</th></tr>
+<tr>
+<th>期号</th>
+<th>算法1预测</th>
+<th>算法2预测</th>
+<th>开奖和值</th>
+<th>结果</th>
+</tr>
 </table>
 
 <footer>BY CKY</footer>
 
 <script>
+// 求数组和
 function sum(arr){ return arr.reduce((a,b)=>a+b,0); }
 
-function calcPrediction(last3_nums){
-    let a = (sum(last3_nums[2])+last3_nums[2][0])/0.28 +
-            (sum(last3_nums[1])+last3_nums[1][0])/0.28 +
-            (sum(last3_nums[0])+last3_nums[0][0])/0.28;
+// 算法1 (原来的)
+function calcPrediction1(last3){
+    let a = (sum(last3[2])+last3[2][0])/0.28 +
+            (sum(last3[1])+last3[1][0])/0.28 +
+            (sum(last3[0])+last3[0][0])/0.28;
     let b = Math.sqrt(a);
     let c = b / 3;
     let decimal = c.toFixed(3).split('.')[1];
     let digitSum = decimal.split('').reduce((s,d)=>s+parseInt(d),0);
-    if(digitSum < 14){
-        return digitSum%2===0 ? '杀大双':'杀大单';
-    } else {
-        return digitSum%2===0 ? '杀小双':'杀小单';
+    if(digitSum<14){
+        return digitSum%2===0?'杀大双':'杀大单';
+    }else{
+        return digitSum%2===0?'杀小双':'杀小单';
     }
 }
 
+// 算法2 (Python公式搬过来的)
+function calcPrediction2(last3){
+    let a = (sum(last3[2])+last3[2][0])/4 +
+            (sum(last3[1])+last3[1][0])/4 +
+            (sum(last3[0])+last3[0][0])/4;
+    let b = Math.sqrt(a);
+    let c = b / 28;
+    let decimal = c.toFixed(3).split('.')[1];
+    let digitSum = decimal.split('').reduce((s,d)=>s+parseInt(d),0);
+    if(digitSum<14){
+        return digitSum%2===0?'杀小双':'杀小单';
+    }else{
+        return digitSum%2===0?'杀大双':'杀大单';
+    }
+}
+
+// 判断胜负
 function checkWin(pred, total){
     let size = total>=14?'大':'小';
     let parity = total%2===1?'单':'双';
-    let combination = size+parity;
-    if(pred==='杀小单' && combination!=='小单') return '✅';
-    if(pred==='杀小双' && combination!=='小双') return '✅';
-    if(pred==='杀大单' && combination!=='大单') return '✅';
-    if(pred==='杀大双' && combination!=='大双') return '✅';
+    let combo = size+parity;
+    if(pred==='杀小单' && combo!=='小单') return '✅';
+    if(pred==='杀小双' && combo!=='小双') return '✅';
+    if(pred==='杀大单' && combo!=='大单') return '✅';
+    if(pred==='杀大双' && combo!=='大双') return '✅';
     return '❌';
 }
 
+// 获取 JSON
 async function fetchJSON(url){
     try{
         const resp = await fetch(url);
         return await resp.json();
-    } catch(e){ console.error(e); return null; }
+    }catch(e){ console.error(e); return null;}
 }
 
+// 加载数据
 async function loadData(){
     const latestData = await fetchJSON('https://pc28.help/kj.json');
     if(!latestData || !latestData.data){
@@ -100,7 +128,6 @@ async function loadData(){
     }
     const latestQihao = parseInt(latestData.data[0].qihao);
     const recordDict = {};
-
     for(let q=latestQihao-22;q<=latestQihao;q++){
         const rec = await fetchJSON(`https://pc28.help/qihao/${q}`);
         if(rec && rec.data){
@@ -109,34 +136,35 @@ async function loadData(){
         }
     }
 
-    // 历史按新→旧显示
-    const sortedQihao = Object.keys(recordDict).map(Number).sort((a,b)=>b-a);
+    const sortedQihao = Object.keys(recordDict).map(Number).sort((a,b)=>b-a); // 新→旧
     const historyTable = document.getElementById('historyTable');
-    historyTable.innerHTML='<tr><th>期号</th><th>预测</th><th>开奖和值</th><th>结果</th></tr>';
+    historyTable.innerHTML='<tr><th>期号</th><th>算法1预测</th><th>算法2预测</th><th>开奖和值</th><th>结果</th></tr>';
 
-    let winCount = 0;
+    let winCount=0;
     const testQihaoList = sortedQihao.slice(0,20);
 
-    for(let curQihao of testQihaoList){
-        const prevQihaos = sortedQihao.filter(q=>q<curQihao).sort((a,b)=>b-a);
-        if(prevQihaos.length<3) continue;
-        const last3_nums = prevQihaos.slice(0,3).map(q=>recordDict[q]);
-        const pred = calcPrediction(last3_nums);
-        let total = sum(recordDict[curQihao]);
-        if(total<10) total = '0'+total;
-        const res = checkWin(pred,sum(recordDict[curQihao]));
+    for(let cur of testQihaoList){
+        const prev3 = sortedQihao.filter(q=>q>cur).slice(0,3).map(q=>recordDict[q]);
+        if(prev3.length<3) continue;
+        const pred1 = calcPrediction1(prev3);
+        const pred2 = calcPrediction2(prev3);
+        const total = sum(recordDict[cur]);
+        const res = checkWin(pred1, total);
         if(res==='✅') winCount++;
         const tr = document.createElement('tr');
-        tr.innerHTML=`<td>${curQihao}</td><td>${pred}</td><td>${total}</td><td class="${res==='✅'?'correct':'wrong'}">${res}</td>`;
+        let resHTML = res;
+        if((winCount/testQihaoList.length*100)>=80 && res==='✅') resHTML+=' 🔥';
+        tr.innerHTML=`<td>${cur}</td><td>${pred1}</td><td>${pred2}</td><td>${total}</td><td>${resHTML}</td>`;
         historyTable.appendChild(tr);
     }
 
-    const winRate = (winCount/testQihaoList.length*100).toFixed(1);
-    document.getElementById('winRate').innerText=`历史胜率: ${winRate}%`;
+    // 最新预测
+    const latest3 = sortedQihao.slice(0,3).map(q=>recordDict[q]);
+    document.getElementById('nextPred1').innerText=`算法1最新${latestQihao+1}期预测: ${calcPrediction1(latest3)}`;
+    document.getElementById('nextPred2').innerText=`算法2最新${latestQihao+1}期预测: ${calcPrediction2(latest3)}`;
 
-    const latestThree = sortedQihao.slice(0,3).map(q=>recordDict[q]);
-    const nextPred = calcPrediction(latestThree);
-    document.getElementById('nextPred').innerText=`最新${latestQihao+1}期预测: ${nextPred}`;
+    const winRate = (winCount/testQihaoList.length*100).toFixed(1);
+    document.getElementById('winRate').innerText=`历史胜率: ${winRate}% ${(winRate>=80)?'🔥推荐':''}`;
 }
 
 window.onload = loadData;
