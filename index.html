@@ -14,7 +14,7 @@ th { background:#eee; }
 </head>
 <body>
 
-<h1>加拿大28历史数据 (最新 25 期)</h1>
+<h1>加拿大28历史数据 (最新 25 期) v2</h1>
 <button onclick="loadData()">刷新数据</button>
 
 <table id="historyTable">
@@ -40,27 +40,27 @@ async function fetchQihao(qihao){
 }
 
 // 获取最新期号
-async function fetchLatestQihao(){
+async function getLatestQihao(){
+    // 官方网页首页一般有最新期号，可以抓取首页 HTML
     try{
-        const resp = await fetch('https://pc28.help/kj.json');
-        const data = await resp.json();
-        if(data.code===1 && data.data.length>0){
-            return parseInt(data.data[0].qihao);
-        }
+        const resp = await fetch('https://pc28.me/?lang=en-us');
+        const html = await resp.text();
+        const match = html.match(/期号\s*[:：]\s*(\d+)/);
+        if(match) return parseInt(match[1]);
     } catch(e){ console.error(e); }
     return null;
 }
 
 // 加载历史 25 期
 async function loadData(){
-    const latestQihao = await fetchLatestQihao();
-    if(!latestQihao){ alert("获取最新期号失败"); return; }
-
     const table = document.getElementById('historyTable');
     table.innerHTML = '<tr><th>期号</th><th>号码</th><th>和值</th></tr>';
 
-    const start = latestQihao - 24; // 最新 + 历史 24 期 = 25 期
-    for(let q=start; q<=latestQihao; q++){
+    let latest = await getLatestQihao();
+    if(!latest) latest = 3345672; // 如果抓不到，使用默认
+
+    const start = latest - 24; // 最新 + 历史 24 期 = 25 期
+    for(let q=start; q<=latest; q++){
         const data = await fetchQihao(q);
         if(data){
             const nums = data.hao.slice(0,3).join(' + ');
