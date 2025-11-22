@@ -58,7 +58,7 @@ footer {
         <div class="infoBox" id="winRateBox"><span id="winRate">加载中...</span></div>
     </div>
 
-    <h2>最近 20 期预测结果</h2>
+    <h2>最近 50 期预测结果</h2>
     <table id="historyTable">
         <tr><th>期号</th><th>预测</th><th>开奖和值</th><th>结果</th></tr>
     </table>
@@ -147,7 +147,7 @@ async function fetchJSON(url){
 // ==== 加载数据 ====
 async function loadData(){
     // 获取最新30期开奖
-    const latestData = await fetchJSON('https://pc28.help/kj.json?limit=100');
+    const latestData = await fetchJSON('https://pc28.help/kj.json?limit=60');
     if(!latestData || !latestData.data){ alert("获取数据失败"); return; }
 
     const recordDict = {};
@@ -162,7 +162,7 @@ async function loadData(){
     historyTable.innerHTML='<tr><th>期号</th><th>预测</th><th>开奖和值</th><th>结果</th></tr>';
 
     let winCount = 0;
-    const testQihaoList = sortedQihao.slice(0,100); // 最近20期显示
+    const testQihaoList = sortedQihao.slice(0,50); // 最近20期显示
     const selectedAlgo = document.getElementById("algorithmSelect").value;
 
     for(let curQihao of testQihaoList){
