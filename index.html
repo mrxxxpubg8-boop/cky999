@@ -58,14 +58,14 @@ footer {
         <div class="infoBox" id="winRateBox"><span id="winRate">加载中...</span></div>
     </div>
 
-    <h2>最近 50 期预测结果</h2>
+    <h2>最近 100 期预测结果</h2>
     <table id="historyTable">
         <tr><th>期号</th><th>预测</th><th>开奖和值</th><th>结果</th></tr>
     </table>
 
     <footer>
         BY CKY @cky_nb
-        <div id="versionInfo">杀组28 版本 v1.1.4</div>
+        <div id="versionInfo">杀组28 版本 v1.1.5</div>
     </footer>
 </div>
 
@@ -147,7 +147,7 @@ async function fetchJSON(url){
 // ==== 加载数据 ====
 async function loadData(){
     // 获取最新30期开奖
-    const latestData = await fetchJSON('https://pc28.help/kj.json?limit=60');
+    const latestData = await fetchJSON('https://pc28.help/kj.json?limit=100');
     if(!latestData || !latestData.data){ alert("获取数据失败"); return; }
 
     const recordDict = {};
