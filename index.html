@@ -1,1 +1,134 @@
+<!DOCTYPE html><html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>杀组28 @SZ28BOT</title>
+<style>
+body { font-family: Arial, sans-serif; text-align:center; background:#f8f8f8; margin:0; padding:0; }
+h1 { margin-top:20px; font-size:28px; font-weight:bold; }
+button { padding:5px 10px; cursor:pointer; font-size:16px; }
+#passwordOverlay { position:fixed; top:0; left:0; width:100%; height:100%; background:#f8f8f8; display:flex; justify-content:center; align-items:center; flex-direction:column; z-index:9999; }
+#passwordOverlay input { padding:10px; font-size:18px; }
+#passwordOverlay button { margin-top:10px; padding:8px 16px; font-size:16px; }
+#passwordError { color:red; margin-top:10px; }
+#mainControls { display:flex; justify-content:center; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+#algorithmSelect { font-size:16px; padding:5px; }
+#infoBoxes { display:flex; justify-content:center; gap:20px; margin-bottom:20px; }
+.infoBox { background:#e0f0ff; padding:10px 20px; border-radius:10px; font-size:20px; font-weight:bold; }
+table { border-collapse: collapse; margin:auto; width:90%; background:#fff; }
+th, td { border:1px solid #ccc; padding:5px; text-align:center; font-weight:bold; }
+th { background:#eee; }
+.correct { color: green; }
+.wrong { color: red; }
+footer { margin-top:10px; font-size:42px; font-weight:bold; color:#fff; background: linear-gradient(to right, #1e3c72, #2a5298); padding:12px 0; border-radius:12px; }
+#versionInfo { margin-top:5px; font-size:18px; color:#fff; }
+</style>
+</head>
+<body>
+<div id="passwordOverlay">
+  <h2>请输入访问密码</h2>
+  <input type="password" id="passwordInput" placeholder="密码">
+  <button onclick="checkPassword()">提交</button>
+  <p id="passwordError"></p>
+</div><div id="mainContent" style="display:none;">
+  <h1>杀组28 @SZ28BOT</h1>
+  <div id="mainControls">
+    <select id="algorithmSelect">
+      <option value="1">算法1</option>
+      <option value="2">算法2</option>
+    </select>
+    <button onclick="loadData()">刷新数据</button>
+  </div>
+  <div id="infoBoxes">
+    <div class="infoBox" id="nextPred">加载中...</div>
+    <div class="infoBox" id="winRate">加载中...</div>
+  </div>  <h2>最近 100 期预测结果</h2>
+  <table id="historyTable"></table>  <footer>
+    BY CKY @cky_nb
+    <div id="versionInfo">杀组28 版本 v1.1.6</div>
+  </footer>
+</div><script>
+/******** 密码 ********/
+const passwordList = ["sz28test1","sz28test2","sz28test3","sz28test4","sz28test5"];
+function checkPassword(){
+  const pw = passwordInput.value;
+  if(passwordList.includes(pw)){
+    localStorage.setItem('sz28_pass','true');
+    passwordOverlay.style.display='none';
+    mainContent.style.display='block';
+    loadData();
+  }else passwordError.innerText='密码错误';
+}
+window.onload=()=>{
+  if(localStorage.getItem('sz28_pass')==='true'){
+    passwordOverlay.style.display='none';
+    mainContent.style.display='block';
+    loadData();
+  }
+};
 
+/******** 工具 ********/
+const sum = arr=>arr.reduce((a,b)=>a+b,0);
+function checkWin(pred,total){
+  const size = total>=14?'大':'小';
+  const parity = total%2?'单':'双';
+  return pred.replace('杀','')!==size+parity?'✅':'❌';
+}
+
+/******** 算法 ********/
+function calcAlgorithm1(l){
+  const a=(sum(l[2])+l[2][0])/0.28+(sum(l[1])+l[1][0])/0.28+(sum(l[0])+l[0][0])/0.28;
+  const d=Math.sqrt(a).toFixed(3).split('.')[1];
+  const s=[...d].reduce((x,y)=>x+ +y,0);
+  return s<14?(s%2?'杀大单':'杀大双'):(s%2?'杀小单':'杀小双');
+}
+function calcAlgorithm2(l){
+  const a=(sum(l[2])+l[2][0])/4+(sum(l[1])+l[1][0])/4+(sum(l[0])+l[0][0])/4;
+  const d=(Math.sqrt(a)/28).toFixed(3).split('.')[1];
+  const s=[...d].reduce((x,y)=>x+ +y,0);
+  return s<14?(s%2?'杀小单':'杀小双'):(s%2?'杀大单':'杀大双');
+}
+
+/******** 数据加载（极速+安全解析 API） ********/
+async function loadData(){
+  winRate.innerText='计算中...';
+  nextPred.innerText='计算中...';
+
+  const res=await fetch('https://pc28.help/kj.json?limit=100',{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+  if(!res||!Array.isArray(res.data)){ alert('API 数据异常'); return; }
+
+  // ===== API 框架校验 =====
+  // 期号必须存在，opennum 必须是 a+b+c
+  const records=[];
+  for(const i of res.data){
+    if(!i.qihao||!i.opennum) continue;
+    const nums=i.opennum.split('+').map(Number);
+    if(nums.length!==3||nums.some(isNaN)) continue;
+    records.push({q:+i.qihao, nums});
+  }
+  if(records.length<10){ alert('有效开奖数据不足'); return; }
+
+  records.sort((a,b)=>b.q-a.q);
+  const algo=algorithmSelect.value;
+
+  let html='<tr><th>期号</th><th>预测</th><th>开奖和值</th><th>结果</th></tr>';
+  let win=0,valid=0;
+
+  for(let i=0;i<records.length-3 && i<100;i++){
+    const cur=records[i];
+    const last3=[records[i+3].nums,records[i+2].nums,records[i+1].nums];
+    const pred=algo==='1'?calcAlgorithm1(last3):calcAlgorithm2(last3);
+    const total=sum(cur.nums);
+    const r=checkWin(pred,total);
+    valid++; if(r==='✅') win++;
+    html+=`<tr><td>${cur.q}</td><td>${pred}</td><td>${total<10?'0'+total:total}</td><td class="${r==='✅'?'correct':'wrong'}">${r}</td></tr>`;
+  }
+
+  historyTable.innerHTML=html;
+  winRate.innerText=`历史胜率: ${(win/valid*100).toFixed(1)}%`;
+
+  const l3=[records[3].nums,records[2].nums,records[1].nums];
+  const next=algo==='1'?calcAlgorithm1(l3):calcAlgorithm2(l3);
+  nextPred.innerText=`最新 ${records[0].q+1} 期预测: ${next}`;
+}
+</script></body>
+</html>
