@@ -8,13 +8,9 @@
 body { font-family: Arial, sans-serif; text-align:center; background:#f8f8f8; margin:0; padding:0; }
 h1 { margin-top:20px; font-size:26px; font-weight:bold; }
 button { padding:6px 12px; cursor:pointer; font-size:16px; }
-#passwordOverlay {
-  position:fixed; inset:0; background:#f8f8f8;
-  display:flex; justify-content:center; align-items:center;
-  flex-direction:column; z-index:9999;
-}
+#passwordOverlay { position:fixed; inset:0; background:#f8f8f8; display:flex; justify-content:center; align-items:center; flex-direction:column; z-index:9999; }
 #passwordOverlay input { padding:10px; font-size:18px; }
-#passwordError { color:red; margin-top:5px; }
+#passwordError { color:red; margin-top:10px; }
 #mainControls { display:flex; justify-content:center; gap:10px; margin:15px 0; flex-wrap:wrap; }
 #infoBoxes { display:flex; justify-content:center; gap:15px; margin-bottom:15px; flex-wrap:wrap; }
 .infoBox { background:#e0f0ff; padding:10px 16px; border-radius:10px; font-size:18px; font-weight:bold; }
@@ -29,7 +25,6 @@ footer { margin:15px auto; font-size:28px; font-weight:bold; color:#fff; backgro
 </head>
 <body>
 
-<!-- 密码覆盖层 -->
 <div id="passwordOverlay">
   <h2>请输入访问密码</h2>
   <input type="password" id="passwordInput" placeholder="密码">
@@ -37,7 +32,6 @@ footer { margin:15px auto; font-size:28px; font-weight:bold; color:#fff; backgro
   <p id="passwordError"></p>
 </div>
 
-<!-- 主内容 -->
 <div id="mainContent" style="display:none;">
   <h1>杀组28 @SZ28BOT</h1>
   <div id="mainControls">
@@ -45,7 +39,7 @@ footer { margin:15px auto; font-size:28px; font-weight:bold; color:#fff; backgro
       <option value="1">算法1</option>
       <option value="2">算法2</option>
     </select>
-    <button onclick="loadData()">刷新预测</button>
+    <button onclick="loadData()">刷新</button>
   </div>
 
   <div id="infoBoxes">
@@ -53,21 +47,20 @@ footer { margin:15px auto; font-size:28px; font-weight:bold; color:#fff; backgro
     <div class="infoBox" id="winRate">加载中...</div>
   </div>
 
-  <h3>最近 50 期</h3>
+  <h3>最近 50 期预测</h3>
   <table id="historyTable">
     <tr><th>期号</th><th>预测</th><th>和值</th><th>结果</th></tr>
   </table>
 
   <footer>
     BY CKY @cky_nb
-    <div id="versionInfo">杀组28 v1.1.9.1</div>
+    <div id="versionInfo">杀组28 v1.1.9.2</div>
   </footer>
 </div>
 
 <script>
-/* ===== 安全密码 ===== */
-const passwordList = ["sz28test1","sz28test2","sz28test3"]; 
-
+// ==== 密码验证 ====
+const passwordList = ["sz28test1","sz28test2","sz28test3"];
 function checkPassword(){
   const pw = document.getElementById('passwordInput').value;
   if(passwordList.includes(pw)){
@@ -75,7 +68,7 @@ function checkPassword(){
     document.getElementById('passwordOverlay').style.display='none';
     document.getElementById('mainContent').style.display='block';
     loadData();
-  }else{
+  } else {
     document.getElementById('passwordError').innerText='密码错误';
   }
 }
@@ -88,81 +81,96 @@ window.onload = ()=>{
   }
 };
 
-/* ===== 工具函数 ===== */
-const sum = a => a.reduce((x,y)=>x+y,0);
+// ==== 工具函数 ====
+const sum = arr => arr.reduce((a,b)=>a+b,0);
 
 function checkWin(pred, total){
   const size = total>=14?'大':'小';
   const parity = total%2?'单':'双';
-  return pred !== ('杀'+size+parity) ? '✅':'❌';
+  return pred==='杀'+size+parity ? '✅':'❌';
 }
 
-/* ===== 算法 ===== */
-function calcAlgorithm(last3, k){
-  let a = last3.reduce((s, n)=>s+(sum(n)+n[0])/k, 0);
-  let d = Math.sqrt(a)/k;
-  let decimal = (d % 1).toFixed(3).substring(2); // 小数部分
-  let digitSum = [...decimal].reduce((s, n)=>s + parseInt(n), 0);
-  if(digitSum < 14) return digitSum%2 ? '杀大单':'杀大双';
-  return digitSum%2 ? '杀小单':'杀小双';
+// ==== 算法函数 ====
+function calcAlgorithm1(last3){
+  let a = (sum(last3[2])+last3[2][0])/0.28 +
+          (sum(last3[1])+last3[1][0])/0.28 +
+          (sum(last3[0])+last3[0][0])/0.28;
+  let b = Math.sqrt(a)/3;
+  let decimal = b.toFixed(3).split('.')[1];
+  let digitSum = decimal.split('').reduce((s,d)=>s+parseInt(d),0);
+  if(digitSum<14) return digitSum%2?'杀大单':'杀大双';
+  return digitSum%2?'杀小单':'杀小双';
 }
 
-/* ===== 获取 JSON ===== */
+function calcAlgorithm2(last3){
+  let a = (sum(last3[2])+last3[2][0])/4 +
+          (sum(last3[1])+last3[1][0])/4 +
+          (sum(last3[0])+last3[0][0])/4;
+  let b = Math.sqrt(a)/28;
+  let decimal = b.toFixed(3).split('.')[1];
+  let digitSum = decimal.split('').reduce((s,d)=>s+parseInt(d),0);
+  if(digitSum<14) return digitSum%2?'杀小单':'杀小双';
+  return digitSum%2?'杀大单':'杀大双';
+}
+
+// ==== 获取 JSON ====
 async function fetchJSON(url){
   try{
-    const resp = await fetch(`${url}&_=${Date.now()}`, { cache:'no-store' });
+    const resp = await fetch(url,{cache:'no-store'});
     return await resp.json();
-  }catch(e){ console.error(e); return null; }
+  } catch(e){
+    console.error(e);
+    return null;
+  }
 }
 
-/* ===== 加载数据 ===== */
+// ==== 加载数据 ====
 async function loadData(){
-  document.getElementById('nextPred').innerText='加载中…';
+  document.getElementById('nextPred').innerText='加载中...';
   try{
-    const data = await fetchJSON('https://pc28.help/kj.json?limit=120');
-    if(!data?.data) throw 'API结构错误';
+    const data = await fetchJSON('https://pc28.help/kj.json?limit=60');
+    if(!data || !data.data) throw '获取数据失败';
 
     const recordDict = {};
     data.data.forEach(item=>{
-      if(!item.qihao || !item.opennum) return;
-      const nums = item.opennum.split('+').map(Number);
-      if(nums.length!==3 || nums.some(isNaN)) return;
-      recordDict[+item.qihao] = nums;
+      const qihao = parseInt(item.qihao);
+      const nums = item.opennum.split('+').map(Number).slice(0,3);
+      if(nums.length>=3) recordDict[qihao] = nums;
     });
 
     const sortedQihao = Object.keys(recordDict).map(Number).sort((a,b)=>b-a);
     const historyTable = document.getElementById('historyTable');
-    historyTable.innerHTML = '<tr><th>期号</th><th>预测</th><th>和值</th><th>结果</th></tr>';
+    historyTable.innerHTML='<tr><th>期号</th><th>预测</th><th>和值</th><th>结果</th></tr>';
 
-    let win = 0;
-    const algoId = document.getElementById('algorithmSelect').value==='1'?28:4;
+    let winCount = 0;
+    const testQihaoList = sortedQihao.slice(0,50);
+    const selectedAlgo = document.getElementById("algorithmSelect").value;
 
-    sortedQihao.slice(0,50).forEach(cur=>{
-      const prevQihao = sortedQihao.filter(q=>q<cur).slice(0,3);
-      if(prevQihao.length<3) return;
-      const last3 = prevQihao.map(q=>recordDict[q]);
-      const pred = calcAlgorithm(last3, algoId);
-      let total = sum(recordDict[cur]);
-      if(total < 10) total = '0'+total;
+    for(let curQihao of testQihaoList){
+      const prevQihaos = sortedQihao.filter(q=>q<curQihao).slice(0,3);
+      if(prevQihaos.length<3) continue;
+      const last3 = prevQihaos.map(q=>recordDict[q]);
+      let pred = selectedAlgo==='1'?calcAlgorithm1(last3):calcAlgorithm2(last3);
+      let total = sum(recordDict[curQihao]);
+      if(total<10) total = '0'+total;
       const res = checkWin(pred,total);
-      if(res==='✅') win++;
-      historyTable.insertAdjacentHTML('beforeend', 
-        `<tr><td>${cur}</td><td>${pred}</td><td>${total}</td><td class="${res==='✅'?'correct':'wrong'}">${res}</td></tr>`
-      );
-    });
+      if(res==='✅') winCount++;
+      const tr = document.createElement('tr');
+      tr.innerHTML=`<td>${curQihao}</td><td>${pred}</td><td>${total}</td><td class="${res==='✅'?'correct':'wrong'}">${res}</td>`;
+      historyTable.appendChild(tr);
+    }
 
-    document.getElementById('winRate').innerText = `胜率 ${(win/50*100).toFixed(1)}%`;
-    const nextPred = calcAlgorithm(sortedQihao.slice(0,3).map(q=>recordDict[q]), algoId);
-    document.getElementById('nextPred').innerText = `下一期预测：${nextPred}`;
+    document.getElementById('winRate').innerText = `历史胜率: ${(winCount/testQihaoList.length*100).toFixed(1)}%`;
 
-  }catch(e){
+    const latestThree = sortedQihao.slice(0,3).map(q=>recordDict[q]);
+    const nextPred = selectedAlgo==='1'?calcAlgorithm1(latestThree):calcAlgorithm2(latestThree);
+    document.getElementById('nextPred').innerText=`下一期预测: ${nextPred}`;
+
+  } catch(e){
+    document.getElementById('nextPred').innerText='刷新失败';
     console.error(e);
-    document.getElementById('nextPred').innerText='加载失败';
   }
 }
-
-/* ===== 自动刷新 ===== */
-setInterval(loadData, 5000); // 每5秒刷新一次
 </script>
 </body>
 </html>
