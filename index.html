@@ -45,7 +45,7 @@ footer {
 
 <body>
 
-<!-- ===== 密码层 ===== -->
+<!-- 密码层 -->
 <div id="passwordOverlay">
   <h2>请输入访问密码</h2>
   <input type="password" id="passwordInput" placeholder="密码">
@@ -53,7 +53,7 @@ footer {
   <p id="passwordError"></p>
 </div>
 
-<!-- ===== 主内容 ===== -->
+<!-- 主内容 -->
 <div id="mainContent" style="display:none;">
   <h1>杀组28 @SZ28BOT</h1>
 
@@ -77,7 +77,7 @@ footer {
 
   <footer>
     未来集团 @wljtjj
-    <div id="versionInfo">杀组28 v1.1.9.2</div>
+    <div id="versionInfo">杀组28 v1.1.9.3</div>
   </footer>
 </div>
 
@@ -124,17 +124,15 @@ function algo(last3,k){
   return ds%2?'杀小单':'杀小双';
 }
 
-/* ===== 加载数据（无代理 / 防缓存） ===== */
+/* ===== 加载数据（60期，无代理） ===== */
 async function loadData(){
-  document.getElementById('nextPred').innerText='加载中...';
+  const nextPredEl = document.getElementById('nextPred');
+  nextPredEl.innerText = '加载中...';
   try{
-    const r = await fetch(
-      'https://pc28.help/kj.json?limit=120&_=' + Date.now(),
-      { cache:'no-store' }
-    );
-    if(!r.ok) throw r.status;
+    const r = await fetch('https://pc28.help/kj.json?limit=60&_=' + Date.now(), { cache: 'no-store' });
+    if(!r.ok) throw `HTTP错误 ${r.status}`;
     const j = await r.json();
-    if(!j.data) throw 'API结构错误';
+    if(!j.data || !Array.isArray(j.data)) throw 'API结构错误';
 
     const map = {};
     j.data.forEach(i=>{
@@ -149,33 +147,29 @@ async function loadData(){
     tbl.innerHTML='<tr><th>期号</th><th>预测</th><th>和值</th><th>结果</th></tr>';
 
     let win = 0;
-    const algoId = algorithmSelect.value==='1' ? 28 : 4;
+    const algoId = document.getElementById('algorithmSelect').value==='1'?28:4;
 
     q.slice(0,50).forEach(cur=>{
       const p = q.filter(x=>x<cur).slice(0,3);
       if(p.length<3) return;
-      const pred = algo(p.map(x=>map[x]),algoId);
+      const last3 = p.map(x=>map[x]);
+      const pred = algo(last3, algoId);
       let total = sum(map[cur]);
       if(total<10) total = '0'+total;
-      const res = checkWin(pred,parseInt(total));
+      const res = checkWin(pred, parseInt(total));
       if(res==='✅') win++;
-      tbl.insertAdjacentHTML(
-        'beforeend',
+      tbl.insertAdjacentHTML('beforeend',
         `<tr><td>${cur}</td><td>${pred}</td><td>${total}</td>
-         <td class="${res==='✅'?'correct':'wrong'}">${res}</td></tr>`
-      );
+         <td class="${res==='✅'?'correct':'wrong'}">${res}</td></tr>`);
     });
 
-    document.getElementById('winRate').innerText =
-      `胜率 ${(win/50*100).toFixed(1)}%`;
-
-    const next = algo(q.slice(0,3).map(x=>map[x]),algoId);
-    document.getElementById('nextPred').innerText =
-      `最新期预测：${next}`;
+    document.getElementById('winRate').innerText=`胜率 ${(win/60*100).toFixed(1)}%`;
+    const next = algo(q.slice(0,3).map(x=>map[x]), algoId);
+    nextPredEl.innerText = `最新期预测：${next}`;
 
   }catch(e){
     console.error(e);
-    document.getElementById('nextPred').innerText='加载失败';
+    nextPredEl.innerText='加载失败';
   }
 }
 </script>
