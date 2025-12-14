@@ -85,16 +85,19 @@ function algo(last3,k){
 
 /* ===== 加载数据 ===== */
 async function loadData(){
-  document.getElementById('nextPred').innerText='加载中...';
+  document.getElementById('nextPred').innerText = '加载中...';
   try{
-    const url = encodeURIComponent('https://pc28.help/kj.json?limit=120');
-    const r = await fetch('https://api.allorigins.win/get?url='+url);
-    const proxyData = await r.json();
-    const j = JSON.parse(proxyData.contents);
-
+    const r = await fetch('https://pc28.help/kj.json?limit=120');
+    const j = await r.json();
 
     if(!j.data) throw 'API结构错误';
 
+    // 后续逻辑...
+  }catch(e){
+    console.error(e);
+    document.getElementById('nextPred').innerText = '加载失败';
+  }
+}
     const map = {};
     j.data.forEach(i=>{
       if(!i.qihao || !i.opennum) return;
