@@ -43,7 +43,8 @@ footer { margin:15px auto; font-size:28px; font-weight:bold; color:#fff; backgro
     <tr><th>期号</th><th>预测</th><th>和值</th><th>结果</th></tr>
   </table>  <footer>
     未来集团 @wljtjj
-    <div id="versionInfo">杀组28 v1.1.9</div>
+    <div id="versionInfo">杀组28 v1.1.9.2
+    </div>
   </footer>
 </div><script>
 /* ===== 密码 ===== */
@@ -86,10 +87,17 @@ function algo(last3,k){
 async function loadData(){
   document.getElementById('nextPred').innerText='加载中...';
   try{
-    const url = encodeURIComponent('https://pc28.help/kj.json?limit=120');
-    const r = await fetch('https://api.allorigins.win/get?url='+url);
-    const proxyData = await r.json();
-    const j = JSON.parse(proxyData.contents);
+    // 直接请求目标接口，去掉代理和URL编码
+    const r = await fetch('https://pc28.help/kj.json?limit=60');
+    const j = await r.json(); // 直接解析响应为JSON
+    // 这里可以继续写处理数据的逻辑哦～
+  } catch(error) {
+    // 记得加上错误处理，比如加载失败时提示
+    document.getElementById('nextPred').innerText='加载失败';
+    console.error('请求出错：', error);
+  }
+}
+
 
     if(!j.data) throw 'API结构错误';
 
