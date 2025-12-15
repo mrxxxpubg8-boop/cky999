@@ -70,14 +70,14 @@ footer {
     <div class="infoBox" id="winRate">加载中...</div>
   </div>
 
-  <h3>最近 50 期</h3>
+  <h3>最近 60 期</h3>
   <table id="historyTable">
     <tr><th>期号</th><th>预测</th><th>和值</th><th>结果</th></tr>
   </table>
 
   <footer>
     未来集团 @wljtjj
-    <div id="versionInfo">杀组28 v1.1.9.3</div>
+    <div id="versionInfo">杀组28 v1.1.9.2</div>
   </footer>
 </div>
 
@@ -149,7 +149,7 @@ async function loadData(){
     let win = 0;
     const algoId = document.getElementById('algorithmSelect').value==='1'?28:4;
 
-    q.slice(0,50).forEach(cur=>{
+    q.slice(0,60).forEach(cur=>{
       const p = q.filter(x=>x<cur).slice(0,3);
       if(p.length<3) return;
       const last3 = p.map(x=>map[x]);
