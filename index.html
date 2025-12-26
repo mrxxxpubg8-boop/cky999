@@ -2,39 +2,131 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>杀组28 @SZ28BOT</title>
-
+<title>杀组预测平台</title>
 <style>
-body { font-family: Arial, sans-serif; text-align:center; background:#f8f8f8; margin:0; padding:0; }
-h1 { margin-top:20px; font-size:26px; font-weight:bold; }
-button { padding:6px 12px; cursor:pointer; font-size:16px; }
-select { font-size:16px; padding:5px; }
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; }
+    h1 { color: #333; }
+    pre { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
+    button { margin: 5px; padding: 10px 15px; cursor: pointer; border-radius: 5px; border: none; background-color: #4CAF50; color: #fff; font-size: 14px; }
+    button:hover { background-color: #45a049; }
+</style>
+</head>
+<body>
+<h1>杀组预测平台（完全前端版）</h1>
+<button onclick="runPrediction(1)">杀组①预测</button>
+<button onclick="runPrediction(2)">杀组②预测</button>
+<pre id="output">预测结果会显示在这里...</pre>
 
-#passwordOverlay {
-  position:fixed; inset:0; background:#f8f8f8;
-  display:flex; justify-content:center; align-items:center;
-  flex-direction:column; z-index:9999;
+<script>
+// 配置
+const BASE_URL = "https://pc28.help";
+const QIHAO_COUNT = 20;
+
+// 获取历史数据
+async function fetchHistory(limit = 50) {
+    try {
+        const resp = await fetch(`${BASE_URL}/kj.json?limit=${limit}`);
+        const data = await resp.json();
+        return data.data || [];
+    } catch (e) {
+        console.error(e);
+        return [];
+    }
 }
-#passwordOverlay input { padding:10px; font-size:18px; }
-#passwordError { color:red; }
 
-#mainControls { display:flex; justify-content:center; gap:10px; margin:15px 0; flex-wrap:wrap; }
-#infoBoxes { display:flex; justify-content:center; gap:15px; margin-bottom:15px; flex-wrap:wrap; }
-
-.infoBox {
-  background:#e0f0ff; padding:10px 16px;
-  border-radius:10px; font-size:18px; font-weight:bold;
+// 转换数据格式
+function parseRecord(item) {
+    const qihao = parseInt(item.qihao);
+    const nums = item.opennum.replace(/,/g, "+").split("+").map(Number).slice(0, 3);
+    return { qihao, nums };
 }
 
-table { border-collapse: collapse; margin:auto; width:95%; background:#fff; }
-th, td { border:1px solid #ccc; padding:6px; text-align:center; font-weight:bold; }
-th { background:#eee; }
+// 杀组①预测公式
+function calcPrediction1(last3_nums) {
+    if (last3_nums.length < 3) return null;
+    let a = (sum(last3_nums[2]) + last3_nums[2][0])/0.28 +
+            (sum(last3_nums[1]) + last3_nums[1][0])/0.28 +
+            (sum(last3_nums[0]) + last3_nums[0][0])/0.28;
+    let b = Math.sqrt(a);
+    let c = b / 3;
+    let decimal_part = c.toFixed(3).split(".")[1];
+    let digit_sum = decimal_part.split("").reduce((acc,d)=>acc+parseInt(d),0);
+    if (digit_sum < 14) return digit_sum % 2 === 0 ? "杀大双" : "杀大单";
+    else return digit_sum % 2 === 0 ? "杀小双" : "杀小单";
+}
 
-.correct { color:green; }
-.wrong { color:red; }
+// 杀组②预测公式
+function calcPrediction2(last3_nums) {
+    if (last3_nums.length < 3) return null;
+    let a = (sum(last3_nums[2]) + last3_nums[2][0])/4 +
+            (sum(last3_nums[1]) + last3_nums[1][0])/4 +
+            (sum(last3_nums[0]) + last3_nums[0][0])/4;
+    let b = Math.sqrt(a);
+    let c = b / 28;
+    let decimal_part = c.toFixed(3).split(".")[1];
+    let digit_sum = decimal_part.split("").reduce((acc,d)=>acc+parseInt(d),0);
+    if (digit_sum < 14) return digit_sum % 2 === 0 ? "杀小双" : "杀小单";
+    else return digit_sum % 2 === 0 ? "杀大双" : "杀大单";
+}
 
-footer {
+// 辅助函数
+function sum(arr) { return arr.reduce((a,b)=>a+b,0); }
+function checkWin(pred, total_sum) {
+    const size = total_sum >= 14 ? "大" : "小";
+    const parity = total_sum % 2 === 1 ? "单" : "双";
+    const comb = size + parity;
+    if (pred === "杀小单" && comb !== "小单") return "✅";
+    if (pred === "杀小双" && comb !== "小双") return "✅";
+    if (pred === "杀大单" && comb !== "大单") return "✅";
+    if (pred === "杀大双" && comb !== "大双") return "✅";
+    return "❌";
+}
+
+// 主预测函数
+async function runPrediction(type) {
+    document.getElementById("output").textContent = "加载中...";
+    const raw = await fetchHistory(QIHAO_COUNT + 20);
+    if (!raw.length) { document.getElementById("output").textContent = "获取历史数据失败"; return; }
+    
+    const record_dict = {};
+    raw.forEach(item => {
+        const r = parseRecord(item);
+        if (r.nums.length === 3) record_dict[r.qihao] = r.nums;
+    });
+    
+    const sorted_qihao = Object.keys(record_dict).map(Number).sort((a,b)=>a-b);
+    if (sorted_qihao.length < 6) { document.getElementById("output").textContent = "历史数据不足"; return; }
+
+    const results = [];
+    let win_count = 0;
+    const test_qihao_list = sorted_qihao.slice(-QIHAO_COUNT);
+    
+    for (const cur_qihao of test_qihao_list) {
+        const prev = sorted_qihao.filter(q => q < cur_qihao);
+        if (prev.length < 3) continue;
+        const last3_nums = prev.slice(-3).map(q=>record_dict[q]);
+        const pred = type===1 ? calcPrediction1(last3_nums) : calcPrediction2(last3_nums);
+        const total_sum = sum(record_dict[cur_qihao]);
+        const res = checkWin(pred,total_sum);
+        if (res === "✅") win_count++;
+        results.push(`${cur_qihao}期 ${pred} 开奖${String(total_sum).padStart(2,'0')} ${res}`);
+    }
+
+    // 下一期预测
+    const last3_for_next = sorted_qihao.slice(-3).map(q=>record_dict[q]);
+    const next_pred = type===1 ? calcPrediction1(last3_for_next) : calcPrediction2(last3_for_next);
+    const next_qihao = Math.max(...sorted_qihao)+1;
+    const win_rate = (win_count / results.length *100).toFixed(1);
+
+    const reply = `最新${next_qihao}期预测: ${next_pred}\n历史胜率: ${win_rate}% (${win_count}/${results.length})\n\n` +
+                  results.reverse().join("\n") +
+                  `\n\n仅供参考，不保证准确`;
+    
+    document.getElementById("output").textContent = reply;
+}
+</script>
+</body>
+</html>footer {
   margin:15px auto; font-size:26px; font-weight:bold;
   color:#fff; background:#1e3c72;
   padding:12px; border-radius:12px; width:95%;
