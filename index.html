@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PC28 开奖刮开页</title>
   <style>
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: Arial, sans-serif;
@@ -15,7 +16,6 @@
       align-items: center;
       min-height: 100vh;
       padding: 16px;
-      box-sizing: border-box;
     }
     .card {
       width: 100%;
@@ -60,6 +60,7 @@
       margin-bottom: 12px;
       font-size: 14px;
       color: rgba(255,255,255,.7);
+      gap: 12px;
     }
     .scratch-wrap {
       position: relative;
@@ -73,7 +74,6 @@
       position: absolute;
       inset: 0;
       padding: 22px;
-      box-sizing: border-box;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -87,9 +87,10 @@
       text-align: center;
     }
     .result-text {
-      font-size: 42px;
+      font-size: 40px;
       font-weight: 900;
       line-height: 1.2;
+      word-break: break-word;
     }
     .sub {
       margin-top: 10px;
@@ -122,6 +123,7 @@
       width: 100%;
       height: 100%;
       touch-action: none;
+      display: block;
     }
     .actions {
       margin-top: 14px;
@@ -145,14 +147,17 @@
       color: #111;
     }
     .msg {
-      height: 260px;
+      min-height: 260px;
       display: flex;
       align-items: center;
       justify-content: center;
       color: rgba(255,255,255,.75);
       text-align: center;
       padding: 20px;
-      box-sizing: border-box;
+      line-height: 1.6;
+    }
+    .err {
+      color: #ffb4b4;
     }
   </style>
 </head>
@@ -163,11 +168,13 @@
         <div class="title">PC28 最新开奖</div>
         <div class="issue" id="issue">加载中</div>
       </div>
-      <button class="btn" id="refreshBtn">刷新</button>
+      <button class="btn" id="refreshBtn" type="button">刷新</button>
     </div>
 
     <div class="body">
-      <div id="content"></div>
+      <div id="content">
+        <div class="msg">正在获取开奖数据...</div>
+      </div>
     </div>
   </div>
 
@@ -186,7 +193,7 @@
     }
 
     function parseLatest(json) {
-      const item = json?.data?.[0];
+      const item = json && json.data && json.data[0];
       if (!item) return null;
 
       const nums = String(item.number || "0+0+0")
@@ -198,9 +205,10 @@
 
       if (nums.length !== 3) return null;
 
-      const total = Number.isNaN(Number(item.num))
+      const totalFromApi = Number(item.num);
+      const total = Number.isNaN(totalFromApi)
         ? nums[0] + nums[1] + nums[2]
-        : Number(item.num);
+        : totalFromApi;
 
       return {
         qihao: String(item.nbr || "--"),
@@ -209,93 +217,86 @@
       };
     }
 
-    async function loadData() {
-      revealed = false;
-      progress = 0;
-      issueEl.textContent = "加载中";
-      content.innerHTML = `<div class="msg">正在获取开奖数据...</div>`;
+    function showError(msg) {
+      issueEl.textContent = "失败";
+      content.innerHTML = `<div class="msg err">获取失败<br>${msg}</div>`;
+    }
 
-      try {
-        const res = await fetch("https://pc28.help/api/kj.json?nbr=1", { cache: "no-store" });
-        if (!res.ok) throw new Error("请求失败：" + res.status);
+    function buildResultHtml(data) {
+      const resultText = `${data.nums[0]} + ${data.nums[1]} + ${data.nums[2]} = ${pad2(data.total)}`;
 
-        const json = await res.json();
-        const data = parseLatest(json);
-        if (!data) throw new Error("开奖数据格式异常");
+      return `
+        <div class="hint">
+          <span>刮开查看本期号码</span>
+          <span id="percentText">已刮开 0%</span>
+        </div>
 
-        issueEl.textContent = `${data.qihao} 期`;
+        <div class="scratch-wrap" id="scratchWrap">
+          <div class="result">
+            <div>
+              <div class="result-top">OPEN RESULT</div>
+              <div style="margin-top:8px;font-size:18px;font-weight:bold;">${data.qihao} 期开奖结果</div>
+            </div>
 
-        const resultText = `${data.nums[0]} + ${data.nums[1]} + ${data.nums[2]} = ${pad2(data.total)}`;
+            <div class="result-main">
+              <div class="result-text">${resultText}</div>
+              <div class="sub">只有总和补 0</div>
+            </div>
 
-        content.innerHTML = `
-          <div class="hint">
-            <span>刮开查看本期号码</span>
-            <span id="percentText">已刮开 0%</span>
-          </div>
-
-          <div class="scratch-wrap" id="scratchWrap">
-            <div class="result">
-              <div>
-                <div class="result-top">OPEN RESULT</div>
-                <div style="margin-top:8px;font-size:18px;font-weight:bold;">${data.qihao} 期开奖结果</div>
+            <div class="balls">
+              <div class="ball">
+                <div class="ball-label">A球</div>
+                <div class="ball-value">${data.nums[0]}</div>
               </div>
-
-              <div class="result-main">
-                <div class="result-text">${resultText}</div>
-                <div class="sub">只有总和补 0</div>
+              <div class="ball">
+                <div class="ball-label">B球</div>
+                <div class="ball-value">${data.nums[1]}</div>
               </div>
-
-              <div class="balls">
-                <div class="ball">
-                  <div class="ball-label">A球</div>
-                  <div class="ball-value">${data.nums[0]}</div>
-                </div>
-                <div class="ball">
-                  <div class="ball-label">B球</div>
-                  <div class="ball-value">${data.nums[1]}</div>
-                </div>
-                <div class="ball">
-                  <div class="ball-label">C球</div>
-                  <div class="ball-value">${data.nums[2]}</div>
-                </div>
-                <div class="ball">
-                  <div class="ball-label">和值</div>
-                  <div class="ball-value">${pad2(data.total)}</div>
-                </div>
+              <div class="ball">
+                <div class="ball-label">C球</div>
+                <div class="ball-value">${data.nums[2]}</div>
+              </div>
+              <div class="ball">
+                <div class="ball-label">和值</div>
+                <div class="ball-value">${pad2(data.total)}</div>
               </div>
             </div>
-            <canvas id="scratchCanvas"></canvas>
           </div>
+          <canvas id="scratchCanvas"></canvas>
+        </div>
 
-          <div class="actions">
-            <button class="btn2 btn-dark" id="revealBtn">直接揭开</button>
-            <button class="btn2 btn-light" id="reloadBtn">重新加载</button>
-          </div>
-        `;
-
-        setupScratch();
-        document.getElementById("revealBtn").onclick = revealAll;
-        document.getElementById("reloadBtn").onclick = loadData;
-
-      } catch (e) {
-        content.innerHTML = `<div class="msg">获取失败<br>${e.message}</div>`;
-        issueEl.textContent = "失败";
-      }
+        <div class="actions">
+          <button class="btn2 btn-dark" id="revealBtn" type="button">直接揭开</button>
+          <button class="btn2 btn-light" id="reloadBtn" type="button">重新加载</button>
+        </div>
+      `;
     }
 
     function setupScratch() {
       const wrap = document.getElementById("scratchWrap");
       canvas = document.getElementById("scratchCanvas");
+
+      if (!wrap || !canvas) {
+        showError("刮开层初始化失败");
+        return;
+      }
+
       const rect = wrap.getBoundingClientRect();
       const dpr = Math.max(window.devicePixelRatio || 1, 1);
 
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
       canvas.style.width = rect.width + "px";
       canvas.style.height = rect.height + "px";
 
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) {
+        showError("浏览器不支持 canvas");
+        return;
+      }
+
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, rect.width, rect.height);
 
       const grad = ctx.createLinearGradient(0, 0, rect.width, rect.height);
       grad.addColorStop(0, "#9ca3af");
@@ -327,9 +328,127 @@
         drawing = true;
         eraseAt(e.clientX, e.clientY);
       };
+
       canvas.onpointermove = (e) => {
         if (!drawing || revealed) return;
         eraseAt(e.clientX, e.clientY);
       };
-      canvas.onpointerup = () => drawing = false;
-      canvas.onpointer
+
+      canvas.onpointerup = () => { drawing = false; };
+      canvas.onpointerleave = () => { drawing = false; };
+      canvas.onpointercancel = () => { drawing = false; };
+    }
+
+    function eraseAt(clientX, clientY) {
+      if (!canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return;
+
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.beginPath();
+      ctx.arc(x, y, 22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+
+      updateProgress();
+    }
+
+    function updateProgress() {
+      if (!canvas) return;
+
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return;
+
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+      let cleared = 0;
+      for (let i = 3; i < data.length; i += 4 * 12) {
+        if (data[i] < 20) cleared++;
+      }
+
+      const total = Math.max(1, Math.floor(data.length / (4 * 12)));
+      progress = Math.min(100, Math.round((cleared / total) * 100));
+
+      const percentText = document.getElementById("percentText");
+      if (percentText) {
+        percentText.textContent = `已刮开 ${progress}%`;
+      }
+
+      if (progress >= 48 && !revealed) {
+        revealAll();
+      }
+    }
+
+    function revealAll() {
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      revealed = true;
+
+      const percentText = document.getElementById("percentText");
+      if (percentText) {
+        percentText.textContent = "已完全揭开";
+      }
+    }
+
+    async function loadData() {
+      revealed = false;
+      progress = 0;
+      canvas = null;
+      drawing = false;
+
+      issueEl.textContent = "加载中";
+      content.innerHTML = `<div class="msg">正在获取开奖数据...</div>`;
+
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 8000);
+
+        const res = await fetch("https://pc28.help/api/kj.json?nbr=1", {
+          cache: "no-store",
+          signal: controller.signal
+        });
+
+        clearTimeout(timer);
+
+        if (!res.ok) {
+          throw new Error("请求失败：" + res.status);
+        }
+
+        const json = await res.json();
+        const data = parseLatest(json);
+
+        if (!data) {
+          throw new Error("开奖数据格式异常");
+        }
+
+        issueEl.textContent = `${data.qihao} 期`;
+        content.innerHTML = buildResultHtml(data);
+
+        document.getElementById("revealBtn").onclick = revealAll;
+        document.getElementById("reloadBtn").onclick = loadData;
+
+        requestAnimationFrame(() => {
+          setupScratch();
+        });
+
+      } catch (e) {
+        const msg = e && e.name === "AbortError"
+          ? "请求超时"
+          : (e && e.message ? e.message : String(e));
+        showError(msg);
+      }
+    }
+
+    refreshBtn.addEventListener("click", loadData);
+    loadData();
+  </script>
+</body>
+</html>
