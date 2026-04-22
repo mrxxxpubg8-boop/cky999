@@ -1,40 +1,338 @@
-<!DOCTYPE html>
-<html lang="zh">
+<!doctype html>
+<html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<title>杀组预测平台</title>
-<style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; }
-    h1 { color: #333; }
-    pre { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
-    button { margin: 5px; padding: 10px 15px; cursor: pointer; border-radius: 5px; border: none; background-color: #4CAF50; color: #fff; font-size: 14px; }
-    button:hover { background-color: #45a049; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PC28 开奖刮开页</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: #1b1b1b;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .top {
+      padding: 18px 20px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .title {
+      font-size: 14px;
+      color: rgba(255,255,255,.65);
+    }
+    .issue {
+      font-size: 24px;
+      font-weight: bold;
+      margin-top: 4px;
+    }
+    .btn {
+      border: 0;
+      background: #fff;
+      color: #111;
+      padding: 10px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .body {
+      padding: 20px;
+    }
+    .hint {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: rgba(255,255,255,.7);
+    }
+    .scratch-wrap {
+      position: relative;
+      height: 260px;
+      border-radius: 24px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #f6d365, #fda085);
+      color: #111;
+    }
+    .result {
+      position: absolute;
+      inset: 0;
+      padding: 22px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .result-top {
+      color: rgba(0,0,0,.6);
+      font-size: 12px;
+      letter-spacing: .2em;
+    }
+    .result-main {
+      text-align: center;
+    }
+    .result-text {
+      font-size: 42px;
+      font-weight: 900;
+      line-height: 1.2;
+    }
+    .sub {
+      margin-top: 10px;
+      color: rgba(0,0,0,.65);
+      font-size: 14px;
+    }
+    .balls {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .ball {
+      background: rgba(0,0,0,.08);
+      border-radius: 18px;
+      padding: 12px 8px;
+      text-align: center;
+    }
+    .ball-label {
+      font-size: 12px;
+      color: rgba(0,0,0,.6);
+    }
+    .ball-value {
+      margin-top: 4px;
+      font-size: 22px;
+      font-weight: bold;
+    }
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+    .actions {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .btn2 {
+      border: 0;
+      border-radius: 14px;
+      padding: 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn-dark {
+      background: rgba(255,255,255,.1);
+      color: #fff;
+    }
+    .btn-light {
+      background: #fff;
+      color: #111;
+    }
+    .msg {
+      height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,.75);
+      text-align: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+  </style>
 </head>
 <body>
-<h1>杀组预测平台（完全前端版）</h1>
-<button onclick="runPrediction(1)">杀组①预测</button>
-<button onclick="runPrediction(2)">杀组②预测</button>
-<pre id="output">预测结果会显示在这里...</pre>
+  <div class="card">
+    <div class="top">
+      <div>
+        <div class="title">PC28 最新开奖</div>
+        <div class="issue" id="issue">加载中</div>
+      </div>
+      <button class="btn" id="refreshBtn">刷新</button>
+    </div>
 
-<script>
-// 配置
-const BASE_URL = "https://pc28.help";
-const QIHAO_COUNT = 20;
+    <div class="body">
+      <div id="content"></div>
+    </div>
+  </div>
 
-// 获取历史数据
-async function fetchHistory(limit = 50) {
-    try {
-        const resp = await fetch(`${BASE_URL}/kj.json?limit=${limit}`);
-        const data = await resp.json();
-        return data.data || [];
-    } catch (e) {
-        console.error(e);
-        return [];
+  <script>
+    const content = document.getElementById("content");
+    const issueEl = document.getElementById("issue");
+    const refreshBtn = document.getElementById("refreshBtn");
+
+    let revealed = false;
+    let progress = 0;
+    let canvas = null;
+    let drawing = false;
+
+    function pad2(n) {
+      return String(Number(n)).padStart(2, "0");
     }
-}
 
-// 转换数据格式
+    function parseLatest(json) {
+      const item = json?.data?.[0];
+      if (!item) return null;
+
+      const nums = String(item.number || "0+0+0")
+        .replace(/,/g, "+")
+        .split("+")
+        .map(x => Number(x.trim()))
+        .filter(n => !Number.isNaN(n))
+        .slice(0, 3);
+
+      if (nums.length !== 3) return null;
+
+      const total = Number.isNaN(Number(item.num))
+        ? nums[0] + nums[1] + nums[2]
+        : Number(item.num);
+
+      return {
+        qihao: String(item.nbr || "--"),
+        nums,
+        total
+      };
+    }
+
+    async function loadData() {
+      revealed = false;
+      progress = 0;
+      issueEl.textContent = "加载中";
+      content.innerHTML = `<div class="msg">正在获取开奖数据...</div>`;
+
+      try {
+        const res = await fetch("https://pc28.help/api/kj.json?nbr=1", { cache: "no-store" });
+        if (!res.ok) throw new Error("请求失败：" + res.status);
+
+        const json = await res.json();
+        const data = parseLatest(json);
+        if (!data) throw new Error("开奖数据格式异常");
+
+        issueEl.textContent = `${data.qihao} 期`;
+
+        const resultText = `${data.nums[0]} + ${data.nums[1]} + ${data.nums[2]} = ${pad2(data.total)}`;
+
+        content.innerHTML = `
+          <div class="hint">
+            <span>刮开查看本期号码</span>
+            <span id="percentText">已刮开 0%</span>
+          </div>
+
+          <div class="scratch-wrap" id="scratchWrap">
+            <div class="result">
+              <div>
+                <div class="result-top">OPEN RESULT</div>
+                <div style="margin-top:8px;font-size:18px;font-weight:bold;">${data.qihao} 期开奖结果</div>
+              </div>
+
+              <div class="result-main">
+                <div class="result-text">${resultText}</div>
+                <div class="sub">只有总和补 0</div>
+              </div>
+
+              <div class="balls">
+                <div class="ball">
+                  <div class="ball-label">A球</div>
+                  <div class="ball-value">${data.nums[0]}</div>
+                </div>
+                <div class="ball">
+                  <div class="ball-label">B球</div>
+                  <div class="ball-value">${data.nums[1]}</div>
+                </div>
+                <div class="ball">
+                  <div class="ball-label">C球</div>
+                  <div class="ball-value">${data.nums[2]}</div>
+                </div>
+                <div class="ball">
+                  <div class="ball-label">和值</div>
+                  <div class="ball-value">${pad2(data.total)}</div>
+                </div>
+              </div>
+            </div>
+            <canvas id="scratchCanvas"></canvas>
+          </div>
+
+          <div class="actions">
+            <button class="btn2 btn-dark" id="revealBtn">直接揭开</button>
+            <button class="btn2 btn-light" id="reloadBtn">重新加载</button>
+          </div>
+        `;
+
+        setupScratch();
+        document.getElementById("revealBtn").onclick = revealAll;
+        document.getElementById("reloadBtn").onclick = loadData;
+
+      } catch (e) {
+        content.innerHTML = `<div class="msg">获取失败<br>${e.message}</div>`;
+        issueEl.textContent = "失败";
+      }
+    }
+
+    function setupScratch() {
+      const wrap = document.getElementById("scratchWrap");
+      canvas = document.getElementById("scratchCanvas");
+      const rect = wrap.getBoundingClientRect();
+      const dpr = Math.max(window.devicePixelRatio || 1, 1);
+
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      canvas.style.width = rect.width + "px";
+      canvas.style.height = rect.height + "px";
+
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const grad = ctx.createLinearGradient(0, 0, rect.width, rect.height);
+      grad.addColorStop(0, "#9ca3af");
+      grad.addColorStop(1, "#6b7280");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, rect.width, rect.height);
+
+      ctx.fillStyle = "rgba(255,255,255,.18)";
+      for (let i = -rect.height; i < rect.width; i += 18) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i + rect.height, rect.height);
+        ctx.lineTo(i + rect.height + 8, rect.height);
+        ctx.lineTo(i + 8, 0);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      ctx.fillStyle = "rgba(255,255,255,.95)";
+      ctx.font = "700 22px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("刮开奖遮罩", rect.width / 2, rect.height / 2 - 14);
+
+      ctx.font = "500 13px sans-serif";
+      ctx.fillText("手指或鼠标刮开查看结果", rect.width / 2, rect.height / 2 + 16);
+
+      canvas.onpointerdown = (e) => {
+        drawing = true;
+        eraseAt(e.clientX, e.clientY);
+      };
+      canvas.onpointermove = (e) => {
+        if (!drawing || revealed) return;
+        eraseAt(e.clientX, e.clientY);
+      };
+      canvas.onpointerup = () => drawing = false;
+      canvas.onpointer// 转换数据格式
 function parseRecord(item) {
     const qihao = parseInt(item.qihao);
     const nums = item.opennum.replace(/,/g, "+").split("+").map(Number).slice(0, 3);
