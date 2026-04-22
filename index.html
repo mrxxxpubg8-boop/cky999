@@ -5,19 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PC28 开奖刮开页</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
       font-family: Arial, sans-serif;
       background: #111;
       color: #fff;
+      min-height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh;
       padding: 16px;
     }
 
@@ -27,21 +25,18 @@
       background: #1b1b1b;
       border-radius: 24px;
       overflow: hidden;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: 0 12px 40px rgba(0,0,0,.35);
     }
 
     .top {
       padding: 18px 20px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,.08);
     }
 
     .title {
       font-size: 14px;
-      color: rgba(255, 255, 255, 0.65);
+      color: rgba(255,255,255,.65);
     }
 
     .issue {
@@ -50,57 +45,37 @@
       margin-top: 4px;
     }
 
-    .btn {
-      border: 0;
-      background: #fff;
-      color: #111;
-      padding: 10px 14px;
-      border-radius: 12px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
     .body {
-      padding: 20px;
-    }
-
-    .scratch-wrap {
-      position: relative;
-      height: 260px;
-      border-radius: 24px;
-      overflow: hidden;
-      background: linear-gradient(135deg, #f6d365, #fda085);
-      color: #111;
-    }
-
-    .result {
-      position: absolute;
-      inset: 0;
-      padding: 22px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      padding: 28px 20px 20px;
       text-align: center;
     }
 
-    .result-text {
-      font-size: 40px;
-      font-weight: 900;
-      line-height: 1.2;
-      word-break: break-word;
+    .wrap {
+      display: inline-block;
+      position: relative;
     }
 
-    canvas {
+    .result-text {
+      font-size: 34px;
+      font-weight: 900;
+      line-height: 1.2;
+      letter-spacing: 1px;
+      color: #fff;
+      padding: 10px 16px;
+    }
+
+    .mask-canvas {
       position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
       touch-action: none;
       display: block;
+      border-radius: 14px;
     }
 
     .actions {
-      margin-top: 14px;
+      margin-top: 20px;
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
@@ -115,7 +90,7 @@
     }
 
     .btn-dark {
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255,255,255,.1);
       color: #fff;
     }
 
@@ -125,11 +100,11 @@
     }
 
     .msg {
-      min-height: 260px;
+      min-height: 120px;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: rgba(255, 255, 255, 0.75);
+      color: rgba(255,255,255,.75);
       text-align: center;
       padding: 20px;
       line-height: 1.6;
@@ -143,11 +118,8 @@
 <body>
   <div class="card">
     <div class="top">
-      <div>
-        <div class="title">PC28 最新开奖</div>
-        <div class="issue" id="issue">加载中</div>
-      </div>
-      <button class="btn" id="refreshBtn" type="button">刷新</button>
+      <div class="title">PC28 最新开奖</div>
+      <div class="issue" id="issue">加载中</div>
     </div>
 
     <div class="body">
@@ -160,7 +132,6 @@
   <script>
     const content = document.getElementById("content");
     const issueEl = document.getElementById("issue");
-    const refreshBtn = document.getElementById("refreshBtn");
 
     let canvas = null;
     let drawing = false;
@@ -204,11 +175,9 @@
       const resultText = `${data.nums[0]} + ${data.nums[1]} + ${data.nums[2]} = ${pad2(data.total)}`;
 
       return `
-        <div class="scratch-wrap" id="scratchWrap">
-          <div class="result">
-            <div class="result-text">${resultText}</div>
-          </div>
-          <canvas id="scratchCanvas"></canvas>
+        <div class="wrap" id="scratchWrap">
+          <div class="result-text">${resultText}</div>
+          <canvas class="mask-canvas" id="scratchCanvas"></canvas>
         </div>
 
         <div class="actions">
@@ -250,19 +219,19 @@
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, rect.width, rect.height);
 
-      ctx.fillStyle = "rgba(255,255,255,0.18)";
-      for (let i = -rect.height; i < rect.width; i += 18) {
+      ctx.fillStyle = "rgba(255,255,255,0.15)";
+      for (let i = -rect.height; i < rect.width; i += 14) {
         ctx.beginPath();
         ctx.moveTo(i, 0);
         ctx.lineTo(i + rect.height, rect.height);
-        ctx.lineTo(i + rect.height + 8, rect.height);
-        ctx.lineTo(i + 8, 0);
+        ctx.lineTo(i + rect.height + 6, rect.height);
+        ctx.lineTo(i + 6, 0);
         ctx.closePath();
         ctx.fill();
       }
 
       ctx.fillStyle = "rgba(255,255,255,0.95)";
-      ctx.font = "700 22px sans-serif";
+      ctx.font = "700 16px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText("Telegram @ii20bot", rect.width / 2, rect.height / 2);
@@ -294,7 +263,7 @@
 
       ctx.globalCompositeOperation = "destination-out";
       ctx.beginPath();
-      ctx.arc(x, y, 22, 0, Math.PI * 2);
+      ctx.arc(x, y, 16, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalCompositeOperation = "source-over";
 
@@ -310,21 +279,20 @@
       const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
 
       let cleared = 0;
-      for (let i = 3; i < data.length; i += 4 * 12) {
+      for (let i = 3; i < data.length; i += 4 * 10) {
         if (data[i] < 20) cleared++;
       }
 
-      const total = Math.max(1, Math.floor(data.length / (4 * 12)));
+      const total = Math.max(1, Math.floor(data.length / (4 * 10)));
       const percent = Math.min(100, Math.round((cleared / total) * 100));
 
-      if (percent >= 48) {
+      if (percent >= 55) {
         revealAll();
       }
     }
 
     function revealAll() {
       if (!canvas) return;
-
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
@@ -379,7 +347,6 @@
       }
     }
 
-    refreshBtn.addEventListener("click", loadData);
     loadData();
   </script>
 </body>
