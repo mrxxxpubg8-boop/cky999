@@ -30,8 +30,35 @@
     }
 
     .top {
-      padding: 18px 20px;
+      position: relative;
+      padding: 18px 138px 18px 20px;
       border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+
+    .countdown-card {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      min-width: 104px;
+      padding: 8px 10px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.1);
+      text-align: center;
+    }
+
+    .countdown-label {
+      font-size: 11px;
+      color: rgba(255,255,255,.55);
+      line-height: 1.2;
+    }
+
+    .countdown-time {
+      margin-top: 3px;
+      font-size: 18px;
+      font-weight: 900;
+      color: #fff;
+      line-height: 1.1;
     }
 
     .title {
@@ -120,6 +147,11 @@
     <div class="top">
       <div class="title">PC28 最新开奖</div>
       <div class="issue" id="issue">加载中</div>
+
+      <div class="countdown-card">
+        <div class="countdown-label">下期开奖</div>
+        <div class="countdown-time" id="countdown">--:--</div>
+      </div>
     </div>
 
     <div class="body">
@@ -129,225 +161,340 @@
     </div>
   </div>
 
-  <script>
-    const content = document.getElementById("content");
-    const issueEl = document.getElementById("issue");
+<script>
+  const content = document.getElementById("content");
+  const issueEl = document.getElementById("issue");
+  const countdownEl = document.getElementById("countdown");
 
-    let canvas = null;
-    let drawing = false;
-    let revealed = false;
+  const PERIOD_SECONDS = 210;
 
-    function pad2(n) {
-      return String(Number(n)).padStart(2, "0");
+  let canvas = null;
+  let drawing = false;
+  let revealed = false;
+  let countdownTimer = null;
+  let waitNextTimer = null;
+
+  function pad2(n) {
+    return String(Number(n)).padStart(2, "0");
+  }
+
+  function parseLatest(json) {
+    const item = json && json.data && json.data[0];
+    if (!item) return null;
+
+    const nums = String(item.number || "0+0+0")
+      .replace(/,/g, "+")
+      .split("+")
+      .map(x => Number(x.trim()))
+      .filter(n => !Number.isNaN(n))
+      .slice(0, 3);
+
+    if (nums.length !== 3) return null;
+
+    const totalFromApi = Number(item.num);
+    const total = Number.isNaN(totalFromApi)
+      ? nums[0] + nums[1] + nums[2]
+      : totalFromApi;
+
+    return {
+      qihao: String(item.nbr || "--"),
+      nums,
+      total,
+      date: String(item.date || ""),
+      time: String(item.time || "")
+    };
+  }
+
+  function parseOpenDateTime(dateText, timeText) {
+    const raw = `${dateText} ${timeText}`.trim();
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})(?::(\d{2}))?$/);
+
+    if (!m) return null;
+
+    return new Date(
+      Number(m[1]),
+      Number(m[2]) - 1,
+      Number(m[3]),
+      Number(m[4]),
+      Number(m[5]),
+      Number(m[6] || 0)
+    );
+  }
+
+  function stopCountdown() {
+    if (countdownTimer) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+    }
+  }
+
+  function stopWaitNext() {
+    if (waitNextTimer) {
+      clearInterval(waitNextTimer);
+      waitNextTimer = null;
+    }
+  }
+
+  async function fetchLatestData() {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+
+    const res = await fetch("https://pc28.help/api/kj.json?nbr=1", {
+      cache: "no-store",
+      signal: controller.signal
+    });
+
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      throw new Error("请求失败：" + res.status);
     }
 
-    function parseLatest(json) {
-      const item = json && json.data && json.data[0];
-      if (!item) return null;
+    const json = await res.json();
+    const data = parseLatest(json);
 
-      const nums = String(item.number || "0+0+0")
-        .replace(/,/g, "+")
-        .split("+")
-        .map(x => Number(x.trim()))
-        .filter(n => !Number.isNaN(n))
-        .slice(0, 3);
-
-      if (nums.length !== 3) return null;
-
-      const totalFromApi = Number(item.num);
-      const total = Number.isNaN(totalFromApi)
-        ? nums[0] + nums[1] + nums[2]
-        : totalFromApi;
-
-      return {
-        qihao: String(item.nbr || "--"),
-        nums,
-        total
-      };
+    if (!data) {
+      throw new Error("开奖数据格式异常");
     }
 
-    function showError(msg) {
-      issueEl.textContent = "失败";
-      content.innerHTML = `<div class="msg err">获取失败<br>${msg}</div>`;
+    return data;
+  }
+
+  function startCountdown(data) {
+    stopCountdown();
+    stopWaitNext();
+
+    if (!countdownEl) return;
+
+    const openAt = parseOpenDateTime(data.date, data.time);
+    if (!openAt) {
+      countdownEl.textContent = "--:--";
+      return;
     }
 
-    function buildResultHtml(data) {
-      const resultText = `${data.nums[0]} + ${data.nums[1]} + ${data.nums[2]} = ${pad2(data.total)}`;
+    const nextAt = new Date(openAt.getTime() + PERIOD_SECONDS * 1000);
 
-      return `
-        <div class="wrap" id="scratchWrap">
-          <div class="result-text">${resultText}</div>
-          <canvas class="mask-canvas" id="scratchCanvas"></canvas>
-        </div>
+    const tick = () => {
+      const diffMs = nextAt.getTime() - Date.now();
 
-        <div class="actions">
-          <button class="btn2 btn-dark" id="revealBtn" type="button">直接揭开</button>
-          <button class="btn2 btn-light" id="reloadBtn" type="button">重新加载</button>
-        </div>
-      `;
-    }
-
-    function setupScratch() {
-      const wrap = document.getElementById("scratchWrap");
-      canvas = document.getElementById("scratchCanvas");
-
-      if (!wrap || !canvas) {
-        showError("刮开层初始化失败");
+      if (diffMs <= 0) {
+        countdownEl.textContent = "00:00";
+        stopCountdown();
+        waitUntilNextDraw(data);
         return;
       }
 
-      const rect = wrap.getBoundingClientRect();
-      const dpr = Math.max(window.devicePixelRatio || 1, 1);
+      const seconds = Math.ceil(diffMs / 1000);
+      const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
+      const ss = String(seconds % 60).padStart(2, "0");
 
-      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-      canvas.style.width = rect.width + "px";
-      canvas.style.height = rect.height + "px";
+      countdownEl.textContent = `${mm}:${ss}`;
+    };
 
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      if (!ctx) {
-        showError("浏览器不支持 canvas");
-        return;
-      }
+    tick();
+    countdownTimer = setInterval(tick, 1000);
+  }
 
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, rect.width, rect.height);
+  function waitUntilNextDraw(oldData) {
+    stopWaitNext();
 
-      const grad = ctx.createLinearGradient(0, 0, rect.width, rect.height);
-      grad.addColorStop(0, "#9ca3af");
-      grad.addColorStop(1, "#6b7280");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, rect.width, rect.height);
-
-      ctx.fillStyle = "rgba(255,255,255,0.15)";
-      for (let i = -rect.height; i < rect.width; i += 14) {
-        ctx.beginPath();
-        ctx.moveTo(i, 0);
-        ctx.lineTo(i + rect.height, rect.height);
-        ctx.lineTo(i + rect.height + 6, rect.height);
-        ctx.lineTo(i + 6, 0);
-        ctx.closePath();
-        ctx.fill();
-      }
-
-      ctx.fillStyle = "rgba(255,255,255,0.95)";
-      ctx.font = "700 16px sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("Telegram @ii20bot", rect.width / 2, rect.height / 2);
-
-      canvas.onpointerdown = (e) => {
-        drawing = true;
-        eraseAt(e.clientX, e.clientY);
-      };
-
-      canvas.onpointermove = (e) => {
-        if (!drawing || revealed) return;
-        eraseAt(e.clientX, e.clientY);
-      };
-
-      canvas.onpointerup = () => { drawing = false; };
-      canvas.onpointerleave = () => { drawing = false; };
-      canvas.onpointercancel = () => { drawing = false; };
-    }
-
-    function eraseAt(clientX, clientY) {
-      if (!canvas) return;
-
-      const rect = canvas.getBoundingClientRect();
-      const x = clientX - rect.left;
-      const y = clientY - rect.top;
-
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      if (!ctx) return;
-
-      ctx.globalCompositeOperation = "destination-out";
-      ctx.beginPath();
-      ctx.arc(x, y, 16, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalCompositeOperation = "source-over";
-
-      updateProgress();
-    }
-
-    function updateProgress() {
-      if (!canvas || revealed) return;
-
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      if (!ctx) return;
-
-      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-
-      let cleared = 0;
-      for (let i = 3; i < data.length; i += 4 * 10) {
-        if (data[i] < 20) cleared++;
-      }
-
-      const total = Math.max(1, Math.floor(data.length / (4 * 10)));
-      const percent = Math.min(100, Math.round((cleared / total) * 100));
-
-      if (percent >= 55) {
-        revealAll();
-      }
-    }
-
-    function revealAll() {
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      revealed = true;
-    }
-
-    async function loadData() {
-      revealed = false;
-      canvas = null;
-      drawing = false;
-
-      issueEl.textContent = "加载中";
-      content.innerHTML = `<div class="msg">正在获取开奖数据...</div>`;
-
+    waitNextTimer = setInterval(async () => {
       try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 8000);
+        const newData = await fetchLatestData();
 
-        const res = await fetch("https://pc28.help/api/kj.json?nbr=1", {
-          cache: "no-store",
-          signal: controller.signal
-        });
+        const oldKey = `${oldData.qihao}_${oldData.date}_${oldData.time}`;
+        const newKey = `${newData.qihao}_${newData.date}_${newData.time}`;
 
-        clearTimeout(timer);
-
-        if (!res.ok) {
-          throw new Error("请求失败：" + res.status);
+        if (newKey !== oldKey) {
+          stopWaitNext();
+          renderData(newData);
         }
-
-        const json = await res.json();
-        const data = parseLatest(json);
-
-        if (!data) {
-          throw new Error("开奖数据格式异常");
-        }
-
-        issueEl.textContent = `${data.qihao} 期`;
-        content.innerHTML = buildResultHtml(data);
-
-        document.getElementById("revealBtn").onclick = revealAll;
-        document.getElementById("reloadBtn").onclick = loadData;
-
-        requestAnimationFrame(() => {
-          setupScratch();
-        });
       } catch (e) {
-        const msg = e && e.name === "AbortError"
-          ? "请求超时"
-          : (e && e.message ? e.message : String(e));
-        showError(msg);
+        if (countdownEl) countdownEl.textContent = "00:00";
       }
+    }, 2000);
+  }
+
+  function showError(msg) {
+    stopCountdown();
+    stopWaitNext();
+
+    if (countdownEl) countdownEl.textContent = "--:--";
+    issueEl.textContent = "失败";
+    content.innerHTML = `<div class="msg err">获取失败<br>${msg}</div>`;
+  }
+
+  function buildResultHtml(data) {
+    const resultText = `${data.nums[0]} + ${data.nums[1]} + ${data.nums[2]} = ${pad2(data.total)}`;
+
+    return `
+      <div class="wrap" id="scratchWrap">
+        <div class="result-text">${resultText}</div>
+        <canvas class="mask-canvas" id="scratchCanvas"></canvas>
+      </div>
+
+      <div class="actions">
+        <button class="btn2 btn-dark" id="revealBtn" type="button">直接揭开</button>
+        <button class="btn2 btn-light" id="reloadBtn" type="button">重新加载</button>
+      </div>
+    `;
+  }
+
+  function renderData(data) {
+    revealed = false;
+    canvas = null;
+    drawing = false;
+
+    issueEl.textContent = `${data.qihao} 期`;
+    content.innerHTML = buildResultHtml(data);
+
+    document.getElementById("revealBtn").onclick = revealAll;
+    document.getElementById("reloadBtn").onclick = loadData;
+
+    startCountdown(data);
+
+    requestAnimationFrame(() => {
+      setupScratch();
+    });
+  }
+
+  function setupScratch() {
+    const wrap = document.getElementById("scratchWrap");
+    canvas = document.getElementById("scratchCanvas");
+
+    if (!wrap || !canvas) {
+      showError("刮开层初始化失败");
+      return;
     }
 
-    loadData();
-  </script>
+    const rect = wrap.getBoundingClientRect();
+    const dpr = Math.max(window.devicePixelRatio || 1, 1);
+
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    canvas.style.width = rect.width + "px";
+    canvas.style.height = rect.height + "px";
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) {
+      showError("浏览器不支持 canvas");
+      return;
+    }
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, rect.width, rect.height);
+
+    const grad = ctx.createLinearGradient(0, 0, rect.width, rect.height);
+    grad.addColorStop(0, "#9ca3af");
+    grad.addColorStop(1, "#6b7280");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, rect.width, rect.height);
+
+    ctx.fillStyle = "rgba(255,255,255,0.15)";
+    for (let i = -rect.height; i < rect.width; i += 14) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i + rect.height, rect.height);
+      ctx.lineTo(i + rect.height + 6, rect.height);
+      ctx.lineTo(i + 6, 0);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.font = "700 16px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Telegram @ii20bot", rect.width / 2, rect.height / 2);
+
+    canvas.onpointerdown = (e) => {
+      drawing = true;
+      eraseAt(e.clientX, e.clientY);
+    };
+
+    canvas.onpointermove = (e) => {
+      if (!drawing || revealed) return;
+      eraseAt(e.clientX, e.clientY);
+    };
+
+    canvas.onpointerup = () => { drawing = false; };
+    canvas.onpointerleave = () => { drawing = false; };
+    canvas.onpointercancel = () => { drawing = false; };
+  }
+
+  function eraseAt(clientX, clientY) {
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return;
+
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    ctx.arc(x, y, 16, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+
+    updateProgress();
+  }
+
+  function updateProgress() {
+    if (!canvas || revealed) return;
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return;
+
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+    let cleared = 0;
+    for (let i = 3; i < data.length; i += 4 * 10) {
+      if (data[i] < 20) cleared++;
+    }
+
+    const total = Math.max(1, Math.floor(data.length / (4 * 10)));
+    const percent = Math.min(100, Math.round((cleared / total) * 100));
+
+    if (percent >= 55) {
+      revealAll();
+    }
+  }
+
+  function revealAll() {
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    revealed = true;
+  }
+
+  async function loadData() {
+    stopCountdown();
+    stopWaitNext();
+
+    revealed = false;
+    canvas = null;
+    drawing = false;
+
+    issueEl.textContent = "加载中";
+    if (countdownEl) countdownEl.textContent = "--:--";
+    content.innerHTML = `<div class="msg">正在获取开奖数据...</div>`;
+
+    try {
+      const data = await fetchLatestData();
+      renderData(data);
+    } catch (e) {
+      const msg = e && e.name === "AbortError"
+        ? "请求超时"
+        : (e && e.message ? e.message : String(e));
+      showError(msg);
+    }
+  }
+
+  loadData();
+</script>
 </body>
 </html>
